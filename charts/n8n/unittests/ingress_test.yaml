@@ -1,0 +1,118 @@
+suite: test main ingress
+
+templates:
+  - main/ingress.yaml
+
+release:
+  name: n8n
+  namespace: n8n
+
+chart:
+  version: 1.0.0
+  appVersion: 1.0.0
+
+tests:
+  - it: should not create ingress resource when main.ingress.enabled is false
+    set:
+      main:
+        ingress:
+          enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should set annotations when main.ingress.annotations is set
+    set:
+      main:
+        ingress:
+          enabled: true
+          annotations:
+            test-key: test-value
+    asserts:
+      - equal:
+          path: metadata.annotations.test-key
+          value: test-value
+
+  - it: should set ingressClassName when main.ingress.className is set
+    set:
+      main:
+        ingress:
+          enabled: true
+          className: test
+    asserts:
+      - equal:
+          path: spec.ingressClassName
+          value: test
+
+  - it: should set tls when main.ingress.tls is set
+    set:
+      main:
+        ingress:
+          enabled: true
+          tls:
+            - secretName: test-tls-secret
+              hosts:
+                - myn8ndomain.com
+    asserts:
+      - equal:
+          path: spec.tls[0].hosts[0]
+          value: myn8ndomain.com
+      - equal:
+          path: spec.tls[0].secretName
+          value: test-tls-secret
+
+  - it: should route main paths to main service
+    set:
+      global:
+        service:
+          port: 80
+      main:
+        ingress:
+          enabled: true
+          hosts:
+            - host: myn8ndomain.com
+              paths:
+                - path: /
+                  pathType: ImplementationSpecific
+    asserts:
+      - contains:
+          path: spec.rules
+          content:
+            host: myn8ndomain.com
+            http:
+              paths:
+                - path: /
+                  pathType: ImplementationSpecific
+                  backend:
+                    service:
+                      name: n8n
+                      port:
+                        number: 80
+                - path: /rest/oauth2-credential/callback
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: n8n
+                      port:
+                        number: 80
+                - path: /webhook-test/
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: n8n
+                      port:
+                        number: 80
+                - path: /form-test/
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: n8n
+                      port:
+                        number: 80
+                - path: /static/
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: n8n
+                      port:
+                        number: 80

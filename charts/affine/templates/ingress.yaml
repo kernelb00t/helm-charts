@@ -1,0 +1,44 @@
+{{- if .Values.front.ingress.enabled -}}
+{{- $fullName := include "affine.fullname" . -}}
+{{- $frontName := include "front.fullname" . -}}
+{{- $graphqlName := include "graphql.fullname" . -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "affine.labels" . | nindent 4 }}
+  {{- with .Values.front.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.front.ingress.className }}
+  ingressClassName: {{ .Values.front.ingress.className }}
+  {{- end }}
+  {{- if .Values.front.ingress.tls }}
+  tls:
+    {{- range .Values.front.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.front.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ if or (eq .path "/graphql") (eq .path "/api") }}{{ $graphqlName }}{{ else }}{{ $frontName }}{{ end }}
+                port:
+                  number: {{ if or (eq .path "/graphql") (eq .path "/api") }}{{ $.Values.graphql.service.port }}{{ else }}{{ $.Values.front.service.port }}{{ end }}
+          {{- end }}
+    {{- end }}
+{{- end }}

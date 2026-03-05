@@ -1,0 +1,55 @@
+# AFFiNE
+
+{{ template "chart.description" . }}
+
+## Introduction
+
+This chart bootstraps an [AFFiNE](https://github.com/toeverything/AFFiNE) deployment on a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) package manager.
+
+## TL;DR
+
+```bash
+helm repo add dev-charts ${REPO_URL}
+helm repo update
+helm install my-affine dev-charts/{{ template "chart.name" . }}
+```
+
+## Prerequisites
+
+- Kubernetes {{ template "chart.kubeVersion" . }}
+- Helm 3.0+
+- PostgreSQL 16+ (Required)
+  - For AI features: `pgvector/pgvector:pg16` is required
+- Redis 6.x or 7.x (Required)
+
+## Installing the Chart
+
+To install the chart with the release name `my-affine`:
+
+```bash
+helm install my-affine dev-charts/{{ template "chart.name" . }} -f your-values.yaml
+```
+
+## Uninstalling the Chart
+
+To uninstall/delete the `my-affine` deployment:
+
+```bash
+helm uninstall my-affinebash
+```
+
+## Parameters
+
+{{ template "chart.valuesSection" . }}
+
+*(See [values.yaml](values.yaml) for the full list of configuration options.)*
+
+## Chart Info
+
+{{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
+
+| Field | Value |
+|-------|-------|
+| Chart Version | `{{ template "chart.version" . }}` |
+| App Version | `{{ template "chart.appVersion" . }}` |
+| Source | {{ range $index, $source := .Sources }}{{ if $index }}<br>{{ end }}<a href="{{ $source }}">{{ $source }}</a>{{ end }} |

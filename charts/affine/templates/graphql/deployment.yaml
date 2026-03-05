@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "graphql.fullname" . }}
+  labels:
+    {{- include "graphql.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.graphql.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "graphql.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.graphql.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "graphql.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "graphql.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          image: "{{ include "affine.image" . }}"
+          imagePullPolicy: {{ .Values.global.pullPolicy }}
+          env:
+            - name: AFFINE_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "affine.encryption.secretName" . }}
+                  key: {{ .Values.encryption.existingSecretKey }}
+            - name: SERVER_FLAVOR
+              value: "graphql"
+            {{- include "affine.nodeOptions" (dict "context" . "default" "--max-old-space-size=2048" "componentEnv" .Values.graphql.extraEnvVars) | nindent 12 }}
+            {{- include "affine.env" . | nindent 12 }}
+            {{- range .Values.graphql.extraEnvVars }}
+            {{- if ne .name "NODE_OPTIONS" }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+            {{- end }}
+            - name: DOC_SERVICE_ENDPOINT
+              value: "http://{{ include "doc.fullname" . }}:{{ .Values.doc.service.port }}"
+          ports:
+            - name: http
+              containerPort: {{ .Values.graphql.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /info
+              port: http
+            initialDelaySeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /info
+              port: http
+            initialDelaySeconds: 20
+          resources:
+            {{- toYaml .Values.graphql.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
+            {{- if .Values.config }}
+            - name: config
+              mountPath: /root/.affine/config/config.json
+              subPath: config.json
+            {{- end }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "affine.fullname" . }}
+        {{- end }}
+        {{- if .Values.config }}
+        - name: config
+          secret:
+            secretName: {{ include "affine.fullname" . }}-config
+        {{- end }}

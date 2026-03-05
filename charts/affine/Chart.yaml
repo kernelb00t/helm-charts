@@ -1,0 +1,18 @@
+apiVersion: v2
+name: affine
+description: Helm chart for AFFiNE - The next-gen knowledge base.
+home: https://affine.pro
+icon: https://affine.pro/favicon.ico
+sources:
+  - https://github.com/toeverything/AFFiNE
+  - https://github.com/dalamudx/helm-charts
+keywords:
+  - affine
+  - knowledge-base
+  - collaboration
+  - productivity
+type: application
+version: 1.0.1
+appVersion: "0.25.8"
+kubeVersion: ">=1.24.0-0"
+dependencies:

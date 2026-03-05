@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "front.fullname" . }}
+  labels:
+    {{- include "front.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.front.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "front.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.front.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "front.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "front.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          image: "{{ include "affine.image" . }}"
+          imagePullPolicy: {{ .Values.global.pullPolicy }}
+          env:
+            - name: AFFINE_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "affine.encryption.secretName" . }}
+                  key: {{ .Values.encryption.existingSecretKey }}
+            - name: SERVER_FLAVOR
+              value: "front"
+            - name: REDIS_SERVER_ENABLED
+              value: "true"
+            - name: DOC_SERVICE_ENDPOINT
+              value: "http://{{ include "doc.fullname" . }}:{{ .Values.doc.service.port }}"
+            {{- include "affine.env" . | nindent 12 }}
+            {{- include "affine.nodeOptions" (dict "context" . "default" "" "componentEnv" .Values.front.extraEnvVars) | nindent 12 }}
+            {{- range .Values.front.extraEnvVars }}
+            {{- if ne .name "NODE_OPTIONS" }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.front.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /info
+              port: http
+            initialDelaySeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /info
+              port: http
+            initialDelaySeconds: 20
+          resources:
+            {{- toYaml .Values.front.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
+            {{- if .Values.experimental.manifests.web }}
+            - name: manifests
+              mountPath: /app/static/assets-manifest.json
+              subPath: web-assets-manifest.json
+            {{- end }}
+            {{- if .Values.experimental.manifests.mobile }}
+            - name: manifests
+              mountPath: /app/static/mobile/assets-manifest.json
+              subPath: mobile-assets-manifest.json
+            {{- end }}
+            {{- if .Values.config }}
+            - name: config
+              mountPath: /root/.affine/config/config.json
+              subPath: config.json
+            {{- end }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "affine.fullname" . }}
+        {{- end }}
+        {{- if or .Values.experimental.manifests.web .Values.experimental.manifests.mobile }}
+        - name: manifests
+          configMap:
+            name: {{ include "affine.fullname" . }}-manifests
+        {{- end }}
+        {{- if .Values.config }}
+        - name: config
+          secret:
+            secretName: {{ include "affine.fullname" . }}-config
+        {{- end }}
+      {{- with .Values.front.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.front.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.front.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

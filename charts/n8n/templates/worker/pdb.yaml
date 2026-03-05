@@ -1,0 +1,18 @@
+{{- if and .Values.worker.pdb.enabled (eq .Values.db.type "postgresdb") (eq .Values.worker.mode "queue") (not .Values.worker.allNodes) (or .Values.worker.autoscaling.enabled (gt (int .Values.worker.count) 1)) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "n8n.names.fullname" . }}-worker
+  labels:
+    {{- include "n8n.labels.component" (dict "context" . "component" "worker") | nindent 4 }}
+spec:
+  {{- if .Values.worker.pdb.minAvailable }}
+  minAvailable: {{ .Values.worker.pdb.minAvailable }}
+  {{- end }}
+  {{- if .Values.worker.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.worker.pdb.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "n8n.labels.matchLabelsComponent" (dict "context" . "component" "worker") | nindent 6 }}
+{{- end }}

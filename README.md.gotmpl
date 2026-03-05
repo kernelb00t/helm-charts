@@ -1,0 +1,29 @@
+# Helm Charts
+
+This repository hosts Helm charts for various applications.
+
+## Usage
+
+Add this repository to your Helm client:
+
+```bash
+helm repo add dev-charts {{ .Env.REPO_URL }}
+helm repo update
+```
+
+## Available Charts
+
+| Chart | Description |
+|---|---|
+{{ range (datasource "charts").charts -}}
+| **{{ .name }}** | {{ .description }} |
+{{ end }}
+## Installation
+
+```bash
+{{ range (datasource "charts").charts -}}
+# Install {{ .name }}
+helm install {{ .name }}-release dev-charts/{{ .name }} -f your-values.yaml
+
+{{ end -}}
+```

@@ -1,0 +1,339 @@
+suite: test doc deployment
+
+templates:
+  - doc/deployment.yaml
+  - encryption-secret.yaml
+  - database-secret.yaml
+
+release:
+  name: affine
+  namespace: affine
+
+chart:
+  version: 1.0.0
+  appVersion: 0.26.3
+
+tests:
+  # --- Replica count -----------------------------------------------
+  - it: should have 1 replica by default
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+        template: doc/deployment.yaml
+
+  - it: should set replica count when doc.replicaCount is set
+    set:
+      doc:
+        replicaCount: 2
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+        template: doc/deployment.yaml
+
+  # --- Image -------------------------------------------------------
+  - it: should use chart appVersion as image tag when tag is not set
+    set:
+      image:
+        tag: ""
+    chart:
+      version: 1.0.0
+      appVersion: 0.26.3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/toeverything/affine:0.26.3
+        template: doc/deployment.yaml
+
+  - it: should use specified tag when image.tag is set
+    set:
+      global:
+        tag: "stable-0.26.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/toeverything/affine:stable-0.26.0
+        template: doc/deployment.yaml
+
+  - it: should override registry when global.registry is set
+    set:
+      global:
+        registry: registry.example.com
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example.com/toeverything/affine:0.26.3
+        template: doc/deployment.yaml
+
+  # --- SERVER_FLAVOR -----------------------------------------------
+  - it: should set SERVER_FLAVOR to doc for doc deployment
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SERVER_FLAVOR
+            value: "doc"
+        template: doc/deployment.yaml
+
+  # --- NODE_OPTIONS ------------------------------------------------
+  - it: should set NODE_OPTIONS to max-old-space-size=4096 for doc deployment
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NODE_OPTIONS
+            value: "--max-old-space-size=4096"
+        template: doc/deployment.yaml
+
+  # --- REDIS_SERVER_ENABLED ----------------------------------------
+  - it: should have REDIS_SERVER_ENABLED set to true for doc deployment
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_SERVER_ENABLED
+            value: "true"
+        template: doc/deployment.yaml
+
+  # --- Encryption private key secret ref ---------------------------
+  - it: should read AFFINE_PRIVATE_KEY from affine-private-key secret by default
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AFFINE_PRIVATE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: affine-private-key
+                key: key
+        template: doc/deployment.yaml
+
+  - it: should read AFFINE_PRIVATE_KEY from existingSecret when encryption.existingSecret is set
+    set:
+      encryption:
+        existingSecret: my-key-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AFFINE_PRIVATE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: my-key-secret
+                key: key
+        template: doc/deployment.yaml
+
+  # --- Database / Redis environment variables ----------------------
+  - it: should set NODE_ENV to production by default
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NODE_ENV
+            value: "production"
+        template: doc/deployment.yaml
+
+  - it: should read DATABASE_PASSWORD from affine-database secret by default
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: affine-database
+                key: postgres-password
+        template: doc/deployment.yaml
+
+  - it: should set REDIS_SERVER_HOST to default value
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_SERVER_HOST
+            value: "redis-master"
+        template: doc/deployment.yaml
+
+  # --- extraEnvVars ------------------------------------------------
+  - it: should inject extra env vars when doc.extraEnvVars is set
+    set:
+      doc:
+        extraEnvVars:
+          - name: DOC_EXTRA_VAR
+            value: "doc_value"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DOC_EXTRA_VAR
+            value: "doc_value"
+        template: doc/deployment.yaml
+
+  # --- Ports -------------------------------------------------------
+  - it: should set containerPort to 3010 by default
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 3010
+        template: doc/deployment.yaml
+
+  - it: should set containerPort when doc.service.port is set
+    set:
+      doc:
+        service:
+          port: 8080
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8080
+        template: doc/deployment.yaml
+
+  # --- Liveness / readiness probes ---------------------------------
+  - it: should probe /info path for livenessProbe
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /info
+        template: doc/deployment.yaml
+
+  - it: should probe /info path for readinessProbe
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /info
+        template: doc/deployment.yaml
+
+  # --- Resources ---------------------------------------------------
+  - it: should apply resource requests when doc.resources is set
+    set:
+      doc:
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 250m
+        template: doc/deployment.yaml
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 256Mi
+        template: doc/deployment.yaml
+
+  # --- Security context --------------------------------------------
+  - it: should apply pod-level security context when podSecurityContext is set
+    set:
+      podSecurityContext:
+        fsGroup: 1001
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.fsGroup
+          value: 1001
+        template: doc/deployment.yaml
+
+  # --- Pod annotations / labels ------------------------------------
+  - it: should apply pod annotations when doc.podAnnotations is set
+    set:
+      doc:
+        podAnnotations:
+          custom.annotation/key: "value"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["custom.annotation/key"]
+          value: "value"
+        template: doc/deployment.yaml
+
+  # --- ServiceAccount ----------------------------------------------
+  - it: should use release-named ServiceAccount by default
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: affine
+        template: doc/deployment.yaml
+
+  - it: should use custom ServiceAccount when serviceAccount.create is false and name is set
+    set:
+      serviceAccount:
+        create: false
+        name: custom-sa
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: custom-sa
+        template: doc/deployment.yaml
+
+  # --- imagePullSecrets --------------------------------------------
+  - it: should inject imagePullSecrets when global.imagePullSecrets is set
+    set:
+      global:
+        imagePullSecrets:
+          - name: my-registry-secret
+    asserts:
+      - equal:
+          path: spec.template.spec.imagePullSecrets[0].name
+          value: my-registry-secret
+        template: doc/deployment.yaml
+
+  # --- Persistence / VolumeMount -----------------------------------
+  - it: should not have a data volumeMount when persistence is disabled
+    set:
+      persistence:
+        enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: data
+        template: doc/deployment.yaml
+
+  - it: should mount data volume and reference PVC when persistence is enabled
+    set:
+      persistence:
+        enabled: true
+        mountPath: /root/.affine
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: data
+            mountPath: /root/.affine
+        template: doc/deployment.yaml
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            persistentVolumeClaim:
+              claimName: affine
+        template: doc/deployment.yaml
+
+  # --- nodeSelector / tolerations / affinity -----------------------
+  - it: should apply nodeSelector when doc.nodeSelector is set
+    set:
+      doc:
+        nodeSelector:
+          kubernetes.io/arch: amd64
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector["kubernetes.io/arch"]
+          value: amd64
+        template: doc/deployment.yaml
+
+  - it: should apply tolerations when doc.tolerations is set
+    set:
+      doc:
+        tolerations:
+          - key: "dedicated"
+            operator: "Equal"
+            value: "doc"
+            effect: "NoSchedule"
+    asserts:
+      - contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "dedicated"
+            operator: "Equal"
+            value: "doc"
+            effect: "NoSchedule"
+        template: doc/deployment.yaml

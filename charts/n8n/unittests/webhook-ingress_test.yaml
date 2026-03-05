@@ -1,0 +1,123 @@
+suite: test webhook ingress
+
+templates:
+  - webhook/ingress.yaml
+
+release:
+  name: n8n
+  namespace: n8n
+
+chart:
+  version: 1.0.0
+  appVersion: 1.0.0
+
+set:
+  db:
+    type: postgresdb
+  webhook:
+    mode: queue
+
+tests:
+  - it: should not create ingress resource when webhook.ingress.enabled is false
+    set:
+      webhook:
+        ingress:
+          enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not create resource when db.type is not postgresdb
+    set:
+      db:
+        type: sqlite
+      webhook:
+        ingress:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not create resource when webhook.mode is not queue
+    set:
+      webhook:
+        mode: regular
+        ingress:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should route webhook paths to webhook service
+    set:
+      global:
+        service:
+          port: 80
+      webhook:
+        ingress:
+          enabled: true
+          hosts:
+            - host: myn8ndomain.com
+    asserts:
+      - contains:
+          path: spec.rules[0].http.paths
+          content:
+            path: /webhook/
+            pathType: Prefix
+            backend:
+              service:
+                name: n8n-webhook
+                port:
+                  number: 80
+      - contains:
+          path: spec.rules[0].http.paths
+          content:
+            path: /form/
+            pathType: Prefix
+            backend:
+              service:
+                name: n8n-webhook
+                port:
+                  number: 80
+
+  - it: should not include mcp route when mcp is disabled
+    set:
+      webhook:
+        ingress:
+          enabled: true
+          hosts:
+            - host: test.com
+        mcp:
+          enabled: false
+    asserts:
+      - lengthEqual:
+          path: spec.rules[0].http.paths
+          count: 4
+
+  - it: should include mcp route when mcp is enabled
+    set:
+      global:
+        service:
+          port: 80
+      webhook:
+        count: 2
+        ingress:
+          enabled: true
+          hosts:
+            - host: test.com
+        mcp:
+          enabled: true
+    asserts:
+      - lengthEqual:
+          path: spec.rules[0].http.paths
+          count: 5
+      - contains:
+          path: spec.rules[0].http.paths
+          content:
+            path: /mcp/
+            pathType: Prefix
+            backend:
+              service:
+                name: n8n-mcp-webhook
+                port:
+                  number: 80

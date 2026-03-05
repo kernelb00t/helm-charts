@@ -1,0 +1,83 @@
+suite: test pdb
+
+templates:
+  - main/pdb.yaml
+  - webhook/pdb.yaml
+  - worker/pdb.yaml
+
+release:
+  name: n8n
+  namespace: n8n
+
+chart:
+  version: 1.0.0
+  appVersion: 1.0.0
+
+set:
+  webhook:
+    count: 1
+  worker:
+    count: 1
+
+tests:
+  - it: should not create pdb resource for main node when main.count is 1 and deployment strategy is Recreate
+    set:
+      global.strategy:
+        type: Recreate
+      main:
+        count: 1
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not create pdb resource for main, worker and webhook nodes when main.pdb.enabled is false and webhook.pdb.enabled is false and worker.pdb.enabled is false
+    set:
+      main:
+        pdb:
+          enabled: false
+      worker:
+        pdb:
+          enabled: false
+      webhook:
+        pdb:
+          enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should create pdb resource for main node when main.count is 2 and deployment strategy is Recreate
+    set:
+      global.strategy:
+        type: Recreate
+      main:
+        count: 2
+    documentSelector:
+      path: metadata.name
+      value: n8n
+    template: main/pdb.yaml
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/instance"]
+          value: n8n
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/name"]
+          value: n8n
+
+  - it: should create pdb resource for main node when deployment strategy is not Recreate and main.count is 1
+    set:
+      global.strategy:
+        type: RollingUpdate
+      main:
+        count: 1
+    documentSelector:
+      path: metadata.name
+      value: n8n
+    template: main/pdb.yaml
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/instance"]
+          value: n8n
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/name"]
+          value: n8n
+

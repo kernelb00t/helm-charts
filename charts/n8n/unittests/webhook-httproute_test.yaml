@@ -1,0 +1,139 @@
+suite: test webhook httproute
+templates:
+  - webhook/httproute.yaml
+
+release:
+  name: n8n
+  namespace: n8n
+
+chart:
+  version: 1.0.0
+  appVersion: 1.0.0
+
+set:
+  db:
+    type: postgresdb
+  webhook:
+    mode: queue
+
+tests:
+  - it: should not create httproute when webhook.httpRoute.enabled is false
+    set:
+      webhook:
+        httpRoute:
+          enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not create httproute when db.type is not postgresdb
+    set:
+      db:
+        type: sqlite
+      webhook:
+        httpRoute:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not create httproute when webhook.mode is not queue
+    set:
+      webhook:
+        mode: regular
+        httpRoute:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should create webhook httproute with correct name
+    set:
+      webhook:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: kind
+          value: HTTPRoute
+      - equal:
+          path: metadata.name
+          value: n8n-webhook
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: webhook
+
+  - it: should route webhook paths to webhook service
+    set:
+      webhook:
+        httpRoute:
+          enabled: true
+    asserts:
+      - contains:
+          path: spec.rules
+          content:
+            matches:
+              - path: { type: PathPrefix, value: /webhook }
+              - path: { type: PathPrefix, value: /webhook-waiting }
+              - path: { type: PathPrefix, value: /form }
+              - path: { type: PathPrefix, value: /form-waiting }
+            backendRefs:
+              - name: n8n-webhook
+                port: 5678
+          any: true
+
+  - it: should not include mcp route when mcp is disabled
+    set:
+      webhook:
+        httpRoute:
+          enabled: true
+        mcp:
+          enabled: false
+    asserts:
+      - notContains:
+          path: spec.rules
+          content:
+            matches:
+              - path: { type: PathPrefix, value: /mcp }
+          any: true
+
+  - it: should include mcp route when mcp is enabled
+    set:
+      webhook:
+        httpRoute:
+          enabled: true
+        mcp:
+          enabled: true
+    asserts:
+      - lengthEqual:
+          path: spec.rules
+          count: 2
+
+  - it: should use parentRefs and hostnames
+    set:
+      webhook:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: infra
+              sectionName: websecure
+          hostnames:
+            - webhook.example.com
+    asserts:
+      - equal:
+          path: spec.parentRefs[0].name
+          value: my-gateway
+      - equal:
+          path: spec.parentRefs[0].namespace
+          value: infra
+      - equal:
+          path: spec.parentRefs[0].sectionName
+          value: websecure
+      - equal:
+          path: spec.hostnames[0]
+          value: webhook.example.com

@@ -1,0 +1,23 @@
+{{- if and .Values.worker.autoscaling.enabled (not .Values.worker.forceToUseStatefulset) (or (not .Values.worker.persistence.enabled) (and .Values.worker.persistence.enabled (eq .Values.worker.persistence.accessMode "ReadWriteMany") )) (eq .Values.db.type "postgresdb") (eq .Values.worker.mode "queue") (not .Values.worker.allNodes) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "n8n.names.fullname" . }}-worker
+  labels:
+    {{- include "n8n.labels.component" (dict "context" . "component" "worker") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "n8n.names.fullname" . }}-worker
+  minReplicas: {{ .Values.worker.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.worker.autoscaling.maxReplicas }}
+  {{- with .Values.worker.autoscaling.metrics }}
+  metrics:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if and .Values.worker.autoscaling.behavior (gt (len .Values.worker.autoscaling.behavior) 0) }}
+  behavior:
+    {{- toYaml .Values.worker.autoscaling.behavior | nindent 4 }}
+  {{- end }}
+{{- end }}

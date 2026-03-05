@@ -1,0 +1,366 @@
+suite: test httproute
+
+templates:
+  - httproute.yaml
+  - encryption-secret.yaml
+  - database-secret.yaml
+
+release:
+  name: affine
+  namespace: affine
+
+chart:
+  version: 1.0.0
+  appVersion: 0.26.3
+
+tests:
+
+  # --- Disabled by default -----------------------------------------
+  - it: should not render an HTTPRoute resource when front.httpRoute.enabled is false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: httproute.yaml
+
+  # --- Enabled -----------------------------------------------------
+  - it: should render an HTTPRoute resource when front.httpRoute.enabled is true
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - hasDocuments:
+          count: 1
+        template: httproute.yaml
+
+  - it: should be of kind HTTPRoute
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - isKind:
+          of: HTTPRoute
+        template: httproute.yaml
+
+  - it: should use the gateway.networking.k8s.io/v1beta1 apiVersion
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - isAPIVersion:
+          of: gateway.networking.k8s.io/v1beta1
+        template: httproute.yaml
+
+  - it: should name the HTTPRoute after the release
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - equal:
+          path: metadata.name
+          value: affine
+        template: httproute.yaml
+
+  # --- parentRefs --------------------------------------------------
+  - it: should set parentRefs from front.httpRoute.parentRefs
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - equal:
+          path: spec.parentRefs[0].name
+          value: my-gateway
+        template: httproute.yaml
+      - equal:
+          path: spec.parentRefs[0].namespace
+          value: gateway-ns
+        template: httproute.yaml
+
+  - it: should support multiple parentRefs
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: gateway-a
+              namespace: ns-a
+            - name: gateway-b
+              namespace: ns-b
+          hostnames:
+            - affine.example.com
+    asserts:
+      - equal:
+          path: spec.parentRefs[0].name
+          value: gateway-a
+        template: httproute.yaml
+      - equal:
+          path: spec.parentRefs[1].name
+          value: gateway-b
+        template: httproute.yaml
+
+  # --- hostnames ---------------------------------------------------
+  - it: should set hostnames from front.httpRoute.hostnames
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - equal:
+          path: spec.hostnames[0]
+          value: affine.example.com
+        template: httproute.yaml
+
+  - it: should support multiple hostnames
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+            - affine.internal
+    asserts:
+      - equal:
+          path: spec.hostnames[0]
+          value: affine.example.com
+        template: httproute.yaml
+      - equal:
+          path: spec.hostnames[1]
+          value: affine.internal
+        template: httproute.yaml
+
+  # --- Routing rules -----------------------------------------------
+  - it: should route /socket.io to front service
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - equal:
+          path: spec.rules[0].matches[0].path.value
+          value: /socket.io
+        template: httproute.yaml
+      - equal:
+          path: spec.rules[0].backendRefs[0].name
+          value: affine-front
+        template: httproute.yaml
+      - equal:
+          path: spec.rules[0].backendRefs[0].port
+          value: 3010
+        template: httproute.yaml
+
+  - it: should route /graphql to graphql service
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - equal:
+          path: spec.rules[1].matches[0].path.value
+          value: /graphql
+        template: httproute.yaml
+      - equal:
+          path: spec.rules[1].backendRefs[0].name
+          value: affine-graphql
+        template: httproute.yaml
+      - equal:
+          path: spec.rules[1].backendRefs[0].port
+          value: 3010
+        template: httproute.yaml
+
+  - it: should route /api to graphql service
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - equal:
+          path: spec.rules[1].matches[1].path.value
+          value: /api
+        template: httproute.yaml
+      - equal:
+          path: spec.rules[1].backendRefs[0].name
+          value: affine-graphql
+        template: httproute.yaml
+
+  - it: should route /workspace to front service
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - equal:
+          path: spec.rules[2].matches[0].path.value
+          value: /workspace
+        template: httproute.yaml
+      - equal:
+          path: spec.rules[2].backendRefs[0].name
+          value: affine-front
+        template: httproute.yaml
+
+  - it: should route / (catch-all) to front service
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - equal:
+          path: spec.rules[3].matches[0].path.value
+          value: /
+        template: httproute.yaml
+      - equal:
+          path: spec.rules[3].backendRefs[0].name
+          value: affine-front
+        template: httproute.yaml
+      - equal:
+          path: spec.rules[3].backendRefs[0].port
+          value: 3010
+        template: httproute.yaml
+
+  - it: should use PathPrefix type for all route matches
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - equal:
+          path: spec.rules[0].matches[0].path.type
+          value: PathPrefix
+        template: httproute.yaml
+      - equal:
+          path: spec.rules[1].matches[0].path.type
+          value: PathPrefix
+        template: httproute.yaml
+      - equal:
+          path: spec.rules[2].matches[0].path.type
+          value: PathPrefix
+        template: httproute.yaml
+      - equal:
+          path: spec.rules[3].matches[0].path.type
+          value: PathPrefix
+        template: httproute.yaml
+
+  # --- Custom service port -----------------------------------------
+  - it: should use custom port when front.service.port is set
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+        service:
+          port: 8080
+    asserts:
+      - equal:
+          path: spec.rules[0].backendRefs[0].port
+          value: 8080
+        template: httproute.yaml
+      - equal:
+          path: spec.rules[3].backendRefs[0].port
+          value: 8080
+        template: httproute.yaml
+
+  - it: should use custom port when graphql.service.port is set
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+      graphql:
+        service:
+          port: 9090
+    asserts:
+      - equal:
+          path: spec.rules[1].backendRefs[0].port
+          value: 9090
+        template: httproute.yaml
+
+  # --- Total number of rules ---------------------------------------
+  - it: should have exactly 4 routing rules
+    set:
+      front:
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: my-gateway
+              namespace: gateway-ns
+          hostnames:
+            - affine.example.com
+    asserts:
+      - lengthEqual:
+          path: spec.rules
+          count: 4
+        template: httproute.yaml

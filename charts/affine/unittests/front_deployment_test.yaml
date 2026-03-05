@@ -1,0 +1,373 @@
+suite: test front deployment
+
+templates:
+  - front/deployment.yaml
+  - encryption-secret.yaml
+  - database-secret.yaml
+
+release:
+  name: affine
+  namespace: affine
+
+chart:
+  version: 1.0.0
+  appVersion: 0.26.3
+
+tests:
+  # --- Replica count -----------------------------------------------
+  - it: should have 1 replica by default
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+        template: front/deployment.yaml
+
+  - it: should set replica count when front.replicaCount is set
+    set:
+      front:
+        replicaCount: 2
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+        template: front/deployment.yaml
+
+  # --- Image -------------------------------------------------------
+  - it: should use chart appVersion as image tag when tag is not set
+    set:
+      image:
+        tag: ""
+    chart:
+      version: 1.0.0
+      appVersion: 0.26.3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/toeverything/affine:0.26.3
+        template: front/deployment.yaml
+
+  - it: should use specified tag when image.tag is set
+    set:
+      global:
+        tag: "stable-0.26.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/toeverything/affine:stable-0.26.0
+        template: front/deployment.yaml
+
+  - it: should override registry when global.registry is set
+    set:
+      global:
+        registry: my.registry.io
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: my.registry.io/toeverything/affine:0.26.3
+        template: front/deployment.yaml
+
+  - it: should use digest format when image.digest is set
+    set:
+      global:
+        digest: "sha256:deadbeef1234"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/toeverything/affine@sha256:deadbeef1234
+        template: front/deployment.yaml
+
+  - it: should set imagePullPolicy when image.pullPolicy is set
+    set:
+      global:
+        pullPolicy: Always
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+        template: front/deployment.yaml
+
+  # --- imagePullSecrets --------------------------------------------
+  - it: should inject imagePullSecrets when global.imagePullSecrets is set
+    set:
+      global:
+        imagePullSecrets:
+          - name: my-registry-secret
+    asserts:
+      - equal:
+          path: spec.template.spec.imagePullSecrets[0].name
+          value: my-registry-secret
+        template: front/deployment.yaml
+
+  # --- SERVER_FLAVOR -----------------------------------------------
+  - it: should set SERVER_FLAVOR to front for front deployment
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SERVER_FLAVOR
+            value: "front"
+        template: front/deployment.yaml
+
+  # --- REDIS_SERVER_ENABLED ----------------------------------------
+  - it: should have REDIS_SERVER_ENABLED set to true for front deployment
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_SERVER_ENABLED
+            value: "true"
+        template: front/deployment.yaml
+
+  # --- DOC_SERVICE_ENDPOINT ----------------------------------------
+  - it: should set DOC_SERVICE_ENDPOINT pointing to doc service
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DOC_SERVICE_ENDPOINT
+            value: "http://affine-doc:3010"
+        template: front/deployment.yaml
+
+  # --- Encryption private key secret ref ---------------------------
+  - it: should read AFFINE_PRIVATE_KEY from affine-private-key secret by default
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AFFINE_PRIVATE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: affine-private-key
+                key: key
+        template: front/deployment.yaml
+
+  - it: should read AFFINE_PRIVATE_KEY from existingSecret when encryption.existingSecret is set
+    set:
+      encryption:
+        existingSecret: custom-key-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AFFINE_PRIVATE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: custom-key-secret
+                key: key
+        template: front/deployment.yaml
+
+  # --- Application environment variables (_env.tpl) ----------------
+  - it: should set NODE_ENV to production by default
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NODE_ENV
+            value: "production"
+        template: front/deployment.yaml
+
+  - it: should inject AFFINE_SERVER_EXTERNAL_URL when app.externalUrl is set
+    set:
+      app:
+        externalUrl: "https://affine.example.com"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AFFINE_SERVER_EXTERNAL_URL
+            value: "https://affine.example.com"
+        template: front/deployment.yaml
+
+  - it: should inject AFFINE_SERVER_SUB_PATH when app.path is set
+    set:
+      app:
+        path: "/affine"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AFFINE_SERVER_SUB_PATH
+            value: "/affine"
+        template: front/deployment.yaml
+
+  # --- global.envVars ----------------------------------------------
+  - it: should inject global env vars when global.envVars is set
+    set:
+      global:
+        envVars:
+          - name: GLOBAL_VAR
+            value: "global_value"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GLOBAL_VAR
+            value: "global_value"
+        template: front/deployment.yaml
+
+  # --- extraEnvVars ------------------------------------------------
+  - it: should inject extra env vars when front.extraEnvVars is set
+    set:
+      front:
+        extraEnvVars:
+          - name: FRONT_EXTRA_VAR
+            value: "front_value"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FRONT_EXTRA_VAR
+            value: "front_value"
+        template: front/deployment.yaml
+
+  # --- Ports -------------------------------------------------------
+  - it: should set containerPort to 3010 by default
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 3010
+        template: front/deployment.yaml
+
+  # --- Liveness / readiness probes ---------------------------------
+  - it: should probe /info path for livenessProbe
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /info
+        template: front/deployment.yaml
+
+  - it: should probe /info path for readinessProbe
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /info
+        template: front/deployment.yaml
+
+  # --- Resources ---------------------------------------------------
+  - it: should apply resource requests and limits when front.resources is set
+    set:
+      front:
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 500m
+        template: front/deployment.yaml
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: 4Gi
+        template: front/deployment.yaml
+
+  # --- Security context --------------------------------------------
+  - it: should apply pod-level security context when podSecurityContext.fsGroup is set
+    set:
+      podSecurityContext:
+        fsGroup: 1001
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.fsGroup
+          value: 1001
+        template: front/deployment.yaml
+
+  - it: should apply container-level security context when containerSecurityContext is set
+    set:
+      containerSecurityContext:
+        runAsUser: 1001
+        runAsNonRoot: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 1001
+        template: front/deployment.yaml
+
+  # --- Pod annotations / labels ------------------------------------
+  - it: should apply pod annotations when front.podAnnotations is set
+    set:
+      front:
+        podAnnotations:
+          sidecar.istio.io/inject: "false"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["sidecar.istio.io/inject"]
+          value: "false"
+        template: front/deployment.yaml
+
+  # --- ServiceAccount ----------------------------------------------
+  - it: should use release-named ServiceAccount by default
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: affine
+        template: front/deployment.yaml
+
+  - it: should use custom ServiceAccount when serviceAccount.create is false and name is set
+    set:
+      serviceAccount:
+        create: false
+        name: custom-front-sa
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: custom-front-sa
+        template: front/deployment.yaml
+
+  # --- Persistence / VolumeMount -----------------------------------
+  - it: should not have a data volumeMount when persistence is disabled
+    set:
+      persistence:
+        enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: data
+        template: front/deployment.yaml
+
+  - it: should mount data volume when persistence is enabled
+    set:
+      persistence:
+        enabled: true
+        mountPath: /root/.affine
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: data
+            mountPath: /root/.affine
+        template: front/deployment.yaml
+
+  # --- nodeSelector / affinity / tolerations -----------------------
+  - it: should apply nodeSelector when front.nodeSelector is set
+    set:
+      front:
+        nodeSelector:
+          kubernetes.io/os: linux
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector["kubernetes.io/os"]
+          value: linux
+        template: front/deployment.yaml
+
+  - it: should apply tolerations when front.tolerations is set
+    set:
+      front:
+        tolerations:
+          - key: "node-role"
+            operator: "Equal"
+            value: "frontend"
+            effect: "NoSchedule"
+    asserts:
+      - contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "node-role"
+            operator: "Equal"
+            value: "frontend"
+            effect: "NoSchedule"
+        template: front/deployment.yaml

@@ -1,0 +1,186 @@
+suite: test ingress
+
+templates:
+  - ingress.yaml
+  - encryption-secret.yaml
+  - database-secret.yaml
+
+release:
+  name: affine
+  namespace: affine
+
+chart:
+  version: 1.0.0
+  appVersion: 0.26.3
+
+tests:
+  # --- Disabled by default -----------------------------------------
+  - it: should not render an Ingress resource when front.ingress.enabled is false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: ingress.yaml
+
+  # --- Enabled -----------------------------------------------------
+  - it: should render an Ingress resource when front.ingress.enabled is true
+    set:
+      front:
+        ingress:
+          enabled: true
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+    asserts:
+      - hasDocuments:
+          count: 1
+        template: ingress.yaml
+
+  - it: should name the Ingress resource after the release
+    set:
+      front:
+        ingress:
+          enabled: true
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+    asserts:
+      - equal:
+          path: metadata.name
+          value: affine
+        template: ingress.yaml
+
+  # --- IngressClass ------------------------------------------------
+  - it: should set ingressClassName when ingress.className is set
+    set:
+      front:
+        ingress:
+          enabled: true
+          className: nginx
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+    asserts:
+      - equal:
+          path: spec.ingressClassName
+          value: nginx
+        template: ingress.yaml
+
+  # --- Annotations -------------------------------------------------
+  - it: should apply annotations when ingress.annotations is set
+    set:
+      front:
+        ingress:
+          enabled: true
+          annotations:
+            nginx.ingress.kubernetes.io/rewrite-target: /
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+    asserts:
+      - equal:
+          path: metadata.annotations["nginx.ingress.kubernetes.io/rewrite-target"]
+          value: /
+        template: ingress.yaml
+
+  # --- TLS ---------------------------------------------------------
+  - it: should render TLS config when ingress.tls is set
+    set:
+      front:
+        ingress:
+          enabled: true
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls:
+            - secretName: affine-tls
+              hosts:
+                - affine.example.com
+    asserts:
+      - equal:
+          path: spec.tls[0].secretName
+          value: affine-tls
+        template: ingress.yaml
+      - equal:
+          path: spec.tls[0].hosts[0]
+          value: affine.example.com
+        template: ingress.yaml
+
+  # --- Backend routing logic ---------------------------------------
+  - it: should route path / to front service
+    set:
+      front:
+        ingress:
+          enabled: true
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+    asserts:
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: affine-front
+        template: ingress.yaml
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.port.number
+          value: 3010
+        template: ingress.yaml
+
+  - it: should route path /graphql to graphql service
+    set:
+      front:
+        ingress:
+          enabled: true
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /graphql
+                  pathType: Prefix
+    asserts:
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: affine-graphql
+        template: ingress.yaml
+
+  - it: should route path /api to graphql service
+    set:
+      front:
+        ingress:
+          enabled: true
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /api
+                  pathType: Prefix
+    asserts:
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: affine-graphql
+        template: ingress.yaml
+
+  # --- Hostname ----------------------------------------------------
+  - it: should include correct host in Ingress rules
+    set:
+      front:
+        ingress:
+          enabled: true
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+    asserts:
+      - equal:
+          path: spec.rules[0].host
+          value: affine.example.com
+        template: ingress.yaml

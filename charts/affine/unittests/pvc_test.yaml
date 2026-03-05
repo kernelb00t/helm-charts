@@ -1,0 +1,136 @@
+suite: test pvc
+
+templates:
+  - pvc.yaml
+  - encryption-secret.yaml
+  - database-secret.yaml
+
+release:
+  name: affine
+  namespace: affine
+
+chart:
+  version: 1.0.0
+  appVersion: 0.26.3
+
+tests:
+  # --- Disabled by default -----------------------------------------
+  - it: should not render a PVC resource when persistence.enabled is false
+    set:
+      persistence:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: pvc.yaml
+
+  # --- Enabled -----------------------------------------------------
+  - it: should render a PVC resource when persistence.enabled is true
+    set:
+      persistence:
+        enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+        template: pvc.yaml
+
+  - it: should name the PVC after the release
+    set:
+      persistence:
+        enabled: true
+    asserts:
+      - equal:
+          path: metadata.name
+          value: affine
+        template: pvc.yaml
+
+  # --- Storage size ------------------------------------------------
+  - it: should apply the specified storage size when persistence.size is set
+    set:
+      persistence:
+        enabled: true
+        size: 20Gi
+    asserts:
+      - equal:
+          path: spec.resources.requests.storage
+          value: 20Gi
+        template: pvc.yaml
+
+  - it: should default storage size to 10Gi
+    set:
+      persistence:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.resources.requests.storage
+          value: 10Gi
+        template: pvc.yaml
+
+  # --- AccessMode --------------------------------------------------
+  - it: should default accessMode to ReadWriteMany
+    set:
+      persistence:
+        enabled: true
+    asserts:
+      - contains:
+          path: spec.accessModes
+          content: ReadWriteMany
+        template: pvc.yaml
+
+  - it: should apply custom accessModes when persistence.accessModes is set
+    set:
+      persistence:
+        enabled: true
+        accessModes:
+          - ReadWriteOnce
+    asserts:
+      - contains:
+          path: spec.accessModes
+          content: ReadWriteOnce
+        template: pvc.yaml
+
+  # --- StorageClass ------------------------------------------------
+  - it: should not render storageClassName when persistence.storageClass is empty
+    set:
+      persistence:
+        enabled: true
+        storageClass: ""
+    asserts:
+      - notExists:
+          path: spec.storageClassName
+        template: pvc.yaml
+
+  - it: should set storageClassName when persistence.storageClass is set
+    set:
+      persistence:
+        enabled: true
+        storageClass: standard
+    asserts:
+      - equal:
+          path: spec.storageClassName
+          value: standard
+        template: pvc.yaml
+
+  - it: should set storageClassName to empty string when persistence.storageClass is -
+    set:
+      persistence:
+        enabled: true
+        storageClass: "-"
+    asserts:
+      - equal:
+          path: spec.storageClassName
+          value: ""
+        template: pvc.yaml
+
+  # --- Annotations -------------------------------------------------
+  - it: should apply annotations when persistence.annotations is set
+    set:
+      persistence:
+        enabled: true
+        annotations:
+          helm.sh/resource-policy: keep
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+        template: pvc.yaml

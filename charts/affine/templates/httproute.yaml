@@ -1,0 +1,45 @@
+{{- if .Values.front.httpRoute.enabled -}}
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: {{ include "affine.fullname" . }}
+  labels:
+    {{- include "affine.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    {{- toYaml .Values.front.httpRoute.parentRefs | nindent 4 }}
+  hostnames:
+    {{- toYaml .Values.front.httpRoute.hostnames | nindent 4 }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /socket.io
+      backendRefs:
+        - name: {{ include "front.fullname" . }}
+          port: {{ .Values.front.service.port }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /graphql
+        - path:
+            type: PathPrefix
+            value: /api
+      backendRefs:
+        - name: {{ include "graphql.fullname" . }}
+          port: {{ .Values.graphql.service.port }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /workspace
+      backendRefs:
+        - name: {{ include "front.fullname" . }}
+          port: {{ .Values.front.service.port }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ include "front.fullname" . }}
+          port: {{ .Values.front.service.port }}
+{{- end }}

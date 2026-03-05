@@ -1,0 +1,194 @@
+suite: test config secret content
+
+templates:
+  - config-secret.yaml
+
+release:
+  name: affine
+  namespace: affine
+
+chart:
+  version: 1.0.0
+  appVersion: 0.26.3
+
+tests:
+
+  # --- Secret metadata -------------------------------------------
+  - it: should render config Secret by default
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should name the config Secret affine-config
+    asserts:
+      - equal:
+          path: metadata.name
+          value: affine-config
+
+  - it: should be of type Opaque
+    asserts:
+      - equal:
+          path: type
+          value: Opaque
+
+  - it: should store config under the config.json key in stringData
+    asserts:
+      - isNotNull:
+          path: stringData["config.json"]
+
+  # --- config.copilot --------------------------------------------
+  - it: should serialize copilot.enabled=false into config.json by default
+    asserts:
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"copilot"'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"enabled":\s*false'
+
+  - it: should serialize copilot.enabled=true into config.json when set
+    set:
+      config:
+        copilot:
+          enabled: true
+    asserts:
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"enabled":\s*true'
+
+  - it: should include copilot provider config when set
+    set:
+      config:
+        copilot:
+          enabled: true
+          providers:
+            openai:
+              apiKey: "sk-testkey"
+              baseURL: "https://api.openai.com/v1"
+    asserts:
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"openai"'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"apiKey":\s*"sk-testkey"'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"baseURL":\s*"https://api.openai.com/v1"'
+
+  # --- config.storages -------------------------------------------
+  - it: should include storages config when config.storages is set
+    set:
+      config:
+        copilot:
+          enabled: false
+        storages:
+          blob:
+            provider: "aws-s3"
+            bucket: "affine-blobs"
+            config:
+              region: "us-east-1"
+    asserts:
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"storages"'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"provider":\s*"aws-s3"'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"bucket":\s*"affine-blobs"'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"region":\s*"us-east-1"'
+
+  - it: should include avatar storage config when set
+    set:
+      config:
+        copilot:
+          enabled: false
+        storages:
+          avatar:
+            provider: "cloudflare-r2"
+            bucket: "affine-avatars"
+    asserts:
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"avatar"'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"cloudflare-r2"'
+
+  # --- config.mailer ---------------------------------------------
+  - it: should include mailer SMTP config when set
+    set:
+      config:
+        copilot:
+          enabled: false
+        mailer:
+          SMTP:
+            host: "smtp.example.com"
+            port: 465
+            username: "user@example.com"
+            sender: "AFFiNE <no-reply@affine.pro>"
+    asserts:
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"mailer"'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"host":\s*"smtp.example.com"'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"port":\s*465'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"username":\s*"user@example.com"'
+
+  # --- config.redis ----------------------------------------------
+  - it: should include redis advanced config when set
+    set:
+      config:
+        copilot:
+          enabled: false
+        redis:
+          db: 1
+          ioredis:
+            sentinels:
+              - host: "redis-sentinel-1"
+                port: 26379
+            name: "mymaster"
+    asserts:
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"redis"'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"db":\s*1'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"mymaster"'
+
+  # --- multiple config sections together -------------------------
+  - it: should serialize all config sections correctly when multiple are set
+    set:
+      config:
+        copilot:
+          enabled: true
+        storages:
+          blob:
+            provider: "fs"
+        mailer:
+          SMTP:
+            host: "smtp.example.com"
+            port: 587
+    asserts:
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"copilot"'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"storages"'
+      - matchRegex:
+          path: stringData["config.json"]
+          pattern: '"mailer"'

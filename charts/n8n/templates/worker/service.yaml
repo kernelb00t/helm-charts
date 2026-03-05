@@ -1,0 +1,25 @@
+{{- if and .Values.global.service.enabled (eq .Values.db.type "postgresdb") (eq .Values.worker.mode "queue") }}
+{{- if or (.Values.worker.forceToUseStatefulset) (and .Values.worker.persistence.enabled (gt (int .Values.worker.count) 1) (not .Values.worker.persistence.existingClaim) (eq .Values.worker.persistence.accessMode "ReadWriteOnce") (not .Values.worker.autoscaling.enabled)) }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "n8n.names.fullname" . }}-worker-headless
+  labels:
+    {{- include "n8n.labels.component" (dict "context" . "component" "worker") | nindent 4 }}
+    {{- with .Values.global.service.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.global.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "n8n.labels.matchLabelsComponent" (dict "context" . "component" "worker") | nindent 4 }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.global.service.port }}
+      targetPort: {{ .Values.global.service.name }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,291 @@
+{{- if and (not .Values.main.forceToUseStatefulset) (or (not .Values.main.persistence.enabled) (and .Values.main.persistence.enabled (or (eq (int .Values.main.count) 1) (eq .Values.main.persistence.accessMode "ReadWriteMany"))) ) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "n8n.names.fullname" . }}
+  labels:
+    {{- include "n8n.labels.component" (dict "context" . "component" "main") | nindent 4 }}
+spec:
+  replicas: {{ .Values.main.count }}
+  strategy:
+    type: {{ .Values.global.strategy.type }}
+    {{- if eq .Values.global.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.global.strategy.rollingUpdate.maxUnavailable }}
+      maxSurge: {{ .Values.global.strategy.rollingUpdate.maxSurge }}
+    {{- end }}
+  selector:
+    matchLabels:
+      {{- include "n8n.labels.matchLabelsComponent" (dict "context" . "component" "main") | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      {{- if eq .Values.taskRunners.mode "external" }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      {{- end }}
+      {{- if .Values.nodes.external.packages }}
+        checksum/packages: {{ (join "," .Values.nodes.external.packages) | sha256sum }}
+      {{- end }}
+      {{- with .Values.global.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "n8n.labels.component" (dict "context" . "component" "main") | nindent 8 }}
+        {{- with .Values.global.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "n8n.images.pullSecrets" (dict "images" (list .Values.main.image .Values.nodes.initContainer.image .Values.taskRunners.image) "global" .Values.global) | nindent 6 }}
+      serviceAccountName: {{ include "n8n.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml (default .Values.global.podSecurityContext .Values.main.podSecurityContext) | nindent 8 }}
+      {{- with .Values.main.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.main.runtimeClassName }}
+      runtimeClassName: {{ .Values.main.runtimeClassName }}
+      {{- end }}
+      {{- if or .Values.main.initContainers .Values.nodes.external.packages }}
+      initContainers:
+      {{- end }}
+        {{- if .Values.nodes.external.packages }}
+        - name: npm-install
+          securityContext:
+            {{- toYaml (default .Values.global.containerSecurityContext .Values.main.securityContext) | nindent 12 }}
+          image: {{ include "n8n.images.image" (dict "imageRoot" .Values.nodes.initContainer.image "global" .Values.global "chart" .Chart) }}
+          imagePullPolicy: {{ .Values.nodes.initContainer.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              {{- include "n8n.npmInstallScript" . | nindent 14 }}
+          volumeMounts:
+            {{- if .Values.npmRegistry.enabled }}
+            - name: npmrc
+              mountPath: "/home/node/.npmrc"
+              subPath: {{ (default "npmrc" .Values.npmRegistry.secretKey) | quote }}
+              readOnly: true
+            {{- end }}
+            - name: {{ default "node-modules" .Values.main.persistence.volumeName }}
+              mountPath: "/npmdata"
+              readOnly: false
+            - name: community-node-modules
+              mountPath: "/nodesdata/nodes"
+              readOnly: false
+          {{- with .Values.nodes.initContainer.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
+      {{- with .Values.main.initContainers }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "n8n.names.name" . }}-main
+          securityContext:
+            {{- toYaml (default .Values.global.containerSecurityContext .Values.main.securityContext) | nindent 12 }}
+          image: {{ include "n8n.images.image" (dict "imageRoot" .Values.main.image "global" .Values.global "chart" .Chart) }}
+          imagePullPolicy: {{ .Values.main.image.pullPolicy }}
+        {{- if and .Values.license.enabled (or (ne .Values.license.activationKey "") (ne .Values.license.existingActivationKeySecret "")) }}
+          command: ["/bin/sh"]
+          args:
+            - "-c"
+            - "n8n license:info && n8n"
+        {{- end }}
+          ports:
+            - name: {{ .Values.global.service.name }}
+              containerPort: {{ .Values.global.service.port }}
+              protocol: TCP
+          livenessProbe:
+            {{- $rootLiveness := .Values.livenessProbe | default dict }}
+            {{- $mainLiveness := .Values.main.livenessProbe | default dict }}
+            {{- toYaml (merge $mainLiveness $rootLiveness) | nindent 12 }}
+          readinessProbe:
+            {{- $rootReadiness := .Values.readinessProbe | default dict }}
+            {{- $mainReadiness := .Values.main.readinessProbe | default dict }}
+            {{- toYaml (merge $mainReadiness $rootReadiness) | nindent 12 }}
+          resources:
+            {{- toYaml (default .Values.global.resources .Values.main.resources) | nindent 12 }}
+          env:
+            {{- include "n8n.env" . | nindent 12 }}
+          {{- if eq .Values.taskRunners.mode "external" }}
+            - name: N8N_RUNNERS_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "n8n.names.fullname" . }}-task-runners-secret
+                  key: auth-token
+          {{- end }}
+          {{- range $key, $value := (default .Values.global.extraEnvVars .Values.main.extraEnvVars) }}
+            - name: {{ upper $key }}
+              value: {{ $value | quote }}
+          {{- end }}
+          envFrom:
+            {{- include "n8n.envFrom" . | nindent 12 }}
+          {{- if or (eq (include "n8n.main.hasVolumeMounts" .) "true") .Values.main.persistence.enabled }}
+          volumeMounts:
+          {{- end }}
+          {{- if and (or .Values.nodes.external.packages .Values.main.persistence.enabled) (eq .Values.taskRunners.mode "internal") }}
+            - name: {{ default "node-modules" .Values.main.persistence.volumeName }}
+              mountPath: {{ .Values.main.persistence.mountPath }}
+              {{- if .Values.main.persistence.subPath }}
+              subPath: {{ .Values.main.persistence.subPath }}
+              {{- end }}
+              readOnly: false
+          {{- end }}
+          {{- if and .Values.nodes.external.packages (eq .Values.taskRunners.mode "internal") }}
+            - name: community-node-modules
+              mountPath: "/home/node/.n8n/nodes"
+              readOnly: false
+          {{- end }}
+          {{- if eq (include "n8n.postgres.ssl.hasCA" .) "true" }}
+            - name: pg-ssl-ca
+              mountPath: /home/node/certs/ca/ca.crt
+              subPath: ca.crt
+              readOnly: true
+          {{- end }}
+          {{- if eq (include "n8n.postgres.ssl.hasCert" .) "true" }}
+            - name: pg-ssl-cert
+              mountPath: /home/node/certs/cert/cert.crt
+              subPath: cert.crt
+              readOnly: true
+          {{- end }}
+          {{- if eq (include "n8n.postgres.ssl.hasKey" .) "true" }}
+            - name: pg-ssl-key
+              mountPath: /home/node/certs/key/cert.key
+              subPath: cert.key
+              readOnly: true
+          {{- end }}
+          {{- with (default .Values.volumeMounts .Values.main.volumeMounts) }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- if eq .Values.taskRunners.mode "external" }}
+        - name: {{ include "n8n.names.name" . }}-task-runners
+          image: {{ include "n8n.images.image" (dict "imageRoot" .Values.taskRunners.image "global" .Values.global "chart" .Chart) }}
+          imagePullPolicy: {{ .Values.taskRunners.image.pullPolicy }}
+          command: ["/usr/local/bin/task-runner-launcher"]
+          args: ["javascript", "python"]
+          ports:
+            - name: runner-http
+              containerPort: {{ .Values.taskRunners.external.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: runner-http
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: runner-http
+          resources:
+            {{- toYaml .Values.taskRunners.external.resources | nindent 12 }}
+          env:
+            - name: N8N_RUNNERS_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "n8n.names.fullname" . }}-task-runners-secret
+                  key: auth-token
+          {{- if .Values.nodes.builtin.enabled }}
+            - name: NODE_FUNCTION_ALLOW_BUILTIN
+              value: {{ if .Values.nodes.builtin.modules }}{{ join "," .Values.nodes.builtin.modules }}{{ else }}"*"{{ end }}
+          {{- end }}
+          {{- if .Values.nodes.external.allowAll }}
+            - name: NODE_FUNCTION_ALLOW_EXTERNAL
+              value: "*"
+          {{- else if .Values.nodes.external.packages }}
+            - name: NODE_FUNCTION_ALLOW_EXTERNAL
+              value: {{ include "n8n.packageNames" .Values.nodes.external.packages | quote }}
+          {{- end }}
+          {{- if .Values.nodes.external.reinstallMissingPackages }}
+            - name: N8N_REINSTALL_MISSING_PACKAGES
+              value: "true"
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ template "n8n.names.fullname" . }}-task-runners-configmap
+          {{- if or .Values.nodes.external.packages .Values.main.persistence.enabled }}
+          volumeMounts:
+            - name: {{ default "node-modules" .Values.main.persistence.volumeName }}
+              mountPath: {{ .Values.main.persistence.mountPath }}
+              {{- if .Values.main.persistence.subPath }}
+              subPath: {{ .Values.main.persistence.subPath }}
+              {{- end }}
+              readOnly: false
+          {{- end }}
+          {{- if .Values.nodes.external.packages }}
+            - name: community-node-modules
+              mountPath: "/home/node/.n8n/nodes"
+              readOnly: false
+          {{- end }}
+      {{- end }}
+      {{- with .Values.main.extraContainers }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if or .Values.main.persistence.enabled (eq (include "n8n.main.hasVolumes" .) "true") }}
+      volumes:
+      {{- end }}
+      {{- if .Values.main.persistence.enabled }}
+        - name: {{ default "node-modules" .Values.main.persistence.volumeName }}
+          persistentVolumeClaim:
+            claimName: {{ default (printf "%s-%s" (include "n8n.names.fullname" .) "main") .Values.main.persistence.existingClaim }}
+      {{- else if .Values.nodes.external.packages }}
+        - name: {{ default "node-modules" .Values.main.persistence.volumeName }}
+          emptyDir: {}
+      {{- end }}
+      {{- if .Values.nodes.external.packages }}
+        - name: community-node-modules
+          emptyDir: {}
+      {{- end }}
+      {{- if .Values.npmRegistry.enabled }}
+        - name: npmrc
+          secret:
+            secretName: {{ default (printf "%s-npm-registry-secret" (include "n8n.names.fullname" .)) .Values.npmRegistry.secretName | quote }}
+            optional: true
+      {{- end }}
+      {{- if eq (include "n8n.postgres.ssl.hasCA" .) "true" }}
+        - name: pg-ssl-ca
+          secret:
+            secretName: {{ default (printf "%s-pg-ssl-ca" (include "n8n.names.fullname" .)) .Values.db.postgresdb.ssl.existingCertificateAuthorityFileSecret.name }}
+            items:
+              - key: {{ default "ca.crt" .Values.db.postgresdb.ssl.existingCertificateAuthorityFileSecret.key }}
+                path: ca.crt
+      {{- end }}
+      {{- if eq (include "n8n.postgres.ssl.hasCert" .) "true" }}
+        - name: pg-ssl-cert
+          secret:
+            secretName: {{ default (printf "%s-pg-ssl-cert" (include "n8n.names.fullname" .)) .Values.db.postgresdb.ssl.existingCertFileSecret.name }}
+            items:
+              - key: {{ default "cert.crt" .Values.db.postgresdb.ssl.existingCertFileSecret.key }}
+                path: cert.crt
+      {{- end }}
+      {{- if eq (include "n8n.postgres.ssl.hasKey" .) "true" }}
+        - name: pg-ssl-key
+          secret:
+            secretName: {{ default (printf "%s-pg-ssl-key" (include "n8n.names.fullname" .)) .Values.db.postgresdb.ssl.existingPrivateKeyFileSecret.name }}
+            items:
+              - key: {{ default "cert.key" .Values.db.postgresdb.ssl.existingPrivateKeyFileSecret.key }}
+                path: cert.key
+      {{- end }}
+      {{- with (default .Values.volumes .Values.main.volumes) }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (default .Values.global.nodeSelector .Values.main.nodeSelector) }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (default .Values.global.affinity .Values.main.affinity) }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (default .Values.global.tolerations .Values.main.tolerations) }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.dnsPolicy }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- end }}
+      {{- with .Values.dnsConfig }}
+      dnsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

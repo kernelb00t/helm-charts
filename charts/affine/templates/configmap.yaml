@@ -1,0 +1,17 @@
+{{- if or .Values.experimental.manifests.web .Values.experimental.manifests.mobile -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "affine.fullname" . }}-manifests
+  labels:
+    {{- include "affine.labels" . | nindent 4 }}
+data:
+  {{- if .Values.experimental.manifests.web }}
+  web-assets-manifest.json: |
+    {{- .Values.experimental.manifests.web | toJson | nindent 4 }}
+  {{- end }}
+  {{- if .Values.experimental.manifests.mobile }}
+  mobile-assets-manifest.json: |
+    {{- .Values.experimental.manifests.mobile | toJson | nindent 4 }}
+  {{- end }}
+{{- end }}

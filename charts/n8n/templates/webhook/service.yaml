@@ -1,0 +1,24 @@
+{{- if and .Values.global.service.enabled (eq .Values.db.type "postgresdb") (eq .Values.webhook.mode "queue") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "n8n.names.fullname" . }}-webhook
+  labels:
+    {{- include "n8n.labels.component" (dict "context" . "component" "webhook") | nindent 4 }}
+    {{- with .Values.global.service.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.global.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.global.service.type }}
+  ports:
+    - port: {{ .Values.global.service.port }}
+      targetPort: {{ .Values.global.service.name }}
+      protocol: TCP
+      name: {{ .Values.global.service.name }}
+  selector:
+    {{- include "n8n.labels.matchLabelsComponent" (dict "context" . "component" "webhook") | nindent 4 }}
+{{- end }}

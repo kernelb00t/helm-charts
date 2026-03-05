@@ -1,0 +1,55 @@
+# {{ template "chart.name" . }}
+
+{{ template "chart.description" . }}
+
+## Introduction
+
+This chart bootstraps an [n8n](https://n8n.io) deployment on a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) package manager.
+
+## TL;DR
+
+```bash
+helm repo add dev-charts ${REPO_URL}
+helm repo update
+helm install my-n8n dev-charts/{{ template "chart.name" . }}
+```
+
+## Prerequisites
+
+- Kubernetes {{ template "chart.kubeVersion" . }}
+- Helm 3.0+
+- PV provisioner support in the underlying infrastructure
+- PostgreSQL (Required for production)
+- Redis (Required for queue mode)
+
+## Installing the Chart
+
+To install the chart with the release name `my-n8n`:
+
+```bash
+helm install my-n8n dev-charts/{{ template "chart.name" . }}
+```
+
+## Uninstalling the Chart
+
+To uninstall/delete the `my-n8n` deployment:
+
+```bash
+helm uninstall my-n8n
+```
+
+## Parameters
+
+{{ template "chart.valuesSection" . }}
+
+*(See [values.yaml](values.yaml) for the full list of configuration options.)*
+
+## Chart Info
+
+{{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
+
+| Field | Value |
+|-------|-------|
+| Chart Version | `{{ template "chart.version" . }}` |
+| App Version | `{{ template "chart.appVersion" . }}` |
+| Source | {{ range $index, $source := .Sources }}{{ if $index }}<br>{{ end }}<a href="{{ $source }}">{{ $source }}</a>{{ end }} |

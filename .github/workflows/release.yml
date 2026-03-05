@@ -1,0 +1,185 @@
+name: Release Charts
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git fetch --prune --unshallow || true
+          git fetch --all
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.18.3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y gettext-base jq && sudo curl -sSfL https://github.com/hairyhenderson/gomplate/releases/latest/download/gomplate_linux-amd64 -o /usr/local/bin/gomplate && sudo chmod +x /usr/local/bin/gomplate && curl -sSfL https://github.com/norwoodj/helm-docs/releases/download/v1.14.2/helm-docs_1.14.2_Linux_x86_64.tar.gz | sudo tar -xz -C /usr/local/bin helm-docs
+
+      - name: Configure Environment
+        id: config
+        run: |
+          TARGET_REPO="${GITHUB_REPOSITORY}"
+          REPO_OWNER="${GITHUB_REPOSITORY_OWNER:-${GITHUB_REPOSITORY%%/*}}"
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          
+          SERVER_URL_BASE=$(echo "${GITHUB_SERVER_URL}" | sed 's|/api/v1.*||')
+          
+          echo "CR_OWNER=${REPO_OWNER}" >> $GITHUB_ENV
+          echo "CR_GIT_REPO=${REPO_NAME}" >> $GITHUB_ENV
+          
+          PUBLIC_URL="https://${REPO_OWNER}.github.io/${REPO_NAME}"
+          echo "PUBLIC_REPO_URL=${PUBLIC_URL}" >> $GITHUB_ENV
+          
+          if [[ "${SERVER_URL_BASE}" == *"gitea"* || "${SERVER_URL_BASE}" == *"aoodc"* || -n "${GITEA_ACTIONS}" ]]; then
+            echo "Detected internal Gitea environment"
+            
+            DOMAIN=$(echo "${SERVER_URL_BASE}" | sed -e 's|^[^/]*//||' -e 's|:[0-9]*||' -e 's|^gitea\.||')
+            echo "REPO_URL=https://${REPO_OWNER}.pages.${DOMAIN}/${REPO_NAME}/@pages" >> $GITHUB_ENV
+            
+            echo "CR_GIT_BASE_URL=${SERVER_URL_BASE}/api/v1/" >> $GITHUB_ENV
+            echo "CR_GIT_UPLOAD_URL=${SERVER_URL_BASE}/api/v1/" >> $GITHUB_ENV
+            echo "GIT_PLATFORM=gitea" >> $GITHUB_ENV
+            echo "GIT_REPO_URL=${SERVER_URL_BASE}/${TARGET_REPO}" >> $GITHUB_ENV
+          else
+            echo "Detected GitHub environment"
+            echo "REPO_URL=${PUBLIC_URL}" >> $GITHUB_ENV
+            echo "GIT_PLATFORM=github" >> $GITHUB_ENV
+            echo "GIT_REPO_URL=${SERVER_URL_BASE}/${TARGET_REPO}" >> $GITHUB_ENV
+          fi
+
+      - name: Prepare Index Data
+        run: |
+          # Generate charts JSON safely using standard yq-to-json and robust jq mapping
+          shopt -s nullglob
+          rm -f /tmp/charts-list.jsonl
+          for f in charts/*/Chart.yaml; do
+            yq -o=json '.' "$f" | jq -c '{name: .name, description: .description, version: .version}' >> /tmp/charts-list.jsonl
+          done
+          jq -s '{charts: .}' /tmp/charts-list.jsonl > /tmp/charts-data.json
+          shopt -u nullglob
+
+          cp index.html.gotmpl /tmp/index.html.gotmpl
+
+      - name: Prepare Dynamic READMEs for Release
+        env:
+          REPO_URL: ${{ env.REPO_URL }}
+        run: |
+          # Overwrite READMEs with platform-specific URLs purely for packaging (.tgz)
+          shopt -s nullglob
+          for tmpl in charts/*/README.md.gotmpl; do
+            dir=$(dirname "$tmpl")
+            REPO_URL="${REPO_URL}" envsubst '${REPO_URL}' < "$tmpl" > "${dir}/README.md.gotmpl.tmp"
+            REPO_URL="${REPO_URL}" helm-docs \
+              --chart-search-root="${dir}" \
+              --template-files="$(realpath ${dir}/README.md.gotmpl.tmp)" \
+              --output-file="README.md" \
+              --ignore-non-descriptions \
+              --log-level=warn
+            rm -f "${dir}/README.md.gotmpl.tmp"
+          done
+          shopt -u nullglob
+
+      - name: Prepare cr config
+        run: |
+          echo "charts_repo_url: ${{ env.REPO_URL }}" > .cr.yaml
+
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          config: .cr.yaml
+          charts_dir: charts
+          pages_branch: pages
+          skip_existing: true
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          CR_OWNER: "${{ env.CR_OWNER }}"
+          CR_GIT_REPO: "${{ env.CR_GIT_REPO }}"
+          CR_GIT_BASE_URL: "${{ env.CR_GIT_BASE_URL }}"
+          CR_GIT_UPLOAD_URL: "${{ env.CR_GIT_UPLOAD_URL }}"
+
+      - name: Update index.html on pages branch
+        env:
+          REPO_URL: ${{ env.REPO_URL }}
+          GIT_PLATFORM: ${{ env.GIT_PLATFORM }}
+          GIT_REPO_URL: ${{ env.GIT_REPO_URL }}
+        run: |
+          git reset --hard HEAD
+          git clean -fd
+          git fetch origin pages
+          git checkout -B pages origin/pages
+
+          if [[ -f index.yaml ]]; then
+            # We construct a simpler yq script file on the fly to avoid inline curly brace parsing explosion
+            echo '.entries | to_entries | map({
+              "name": .key,
+              "description": .value[0].description,
+              "version": .value[0].version,
+              "appVersion": (.value[0].appVersion // "")
+            })' > /tmp/yq_script.jq
+            charts_json=$(yq '.' -o json index.yaml | jq -f /tmp/yq_script.jq | jq '{"charts": .}')
+          else
+            charts_json=$(cat /tmp/charts-data.json)
+          fi
+          echo "$charts_json" > /tmp/charts-data-pages.json
+
+          gomplate -f /tmp/index.html.gotmpl -o index.html -d charts=file:///tmp/charts-data-pages.json
+
+          git add index.html
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: update index.html"
+            git pull origin pages --rebase || true
+            git push origin pages
+          fi
+
+      - name: Delete old workflow runs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+        run: |
+          API_URL="${GITHUB_API_URL}"
+          REPO="${GITHUB_REPOSITORY}"
+          echo "Fetching runs for workflow: $WORKFLOW_NAME on $API_URL"
+          
+          # Fetch recent 100 runs
+          RUNS_JSON=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL}/repos/${REPO}/actions/runs?per_page=100")
+          
+          ERROR_MSG=$(echo "$RUNS_JSON" | jq -r '.message // empty')
+          if [ -n "$ERROR_MSG" ]; then
+            echo "API returned error: $ERROR_MSG"
+            # Prevent failing the whole build just because of cleanup
+            exit 0
+          fi
+
+          # Extract all runs for current workflow, sort by creation (newest first), keep the first 15, and get the rest IDs
+          RUN_IDS=$(echo "$RUNS_JSON" | jq -r --arg wf "$WORKFLOW_NAME" '.workflow_runs | map(select(.name == $wf)) | sort_by(.created_at) | reverse | .[15:] | .[].id')
+          
+          if [ -z "$RUN_IDS" ] || [ "$RUN_IDS" = "null" ]; then
+            echo "No old runs to delete."
+            exit 0
+          fi
+          
+          for RUN_ID in $RUN_IDS; do
+            echo "Deleting run: $RUN_ID"
+            curl -s -X DELETE -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL}/repos/${REPO}/actions/runs/${RUN_ID}" || true
+          done

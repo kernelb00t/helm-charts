@@ -1,0 +1,209 @@
+{{- if and (eq .Values.db.type "postgresdb") (eq .Values.webhook.mode "queue") }}
+apiVersion: apps/v1
+{{- if .Values.webhook.allNodes }}
+kind: DaemonSet
+{{- else }}
+kind: Deployment
+{{- end }}
+metadata:
+  name: {{ include "n8n.names.fullname" . }}-webhook
+  labels:
+    {{- include "n8n.labels.component" (dict "context" . "component" "webhook") | nindent 4 }}
+spec:
+  {{- if and .Values.webhook.allNodes (eq .Values.global.strategy.type "RollingUpdate") }}
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: {{ .Values.global.strategy.rollingUpdate.maxUnavailable }}
+  {{- else }}
+  {{- if not .Values.webhook.autoscaling.enabled }}
+  replicas: {{ .Values.webhook.count }}
+  {{- end }}
+  strategy:
+    type: {{ .Values.global.strategy.type }}
+    {{- if eq .Values.global.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.global.strategy.rollingUpdate.maxUnavailable }}
+      maxSurge: {{ .Values.global.strategy.rollingUpdate.maxSurge }}
+    {{- end }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "n8n.labels.matchLabelsComponent" (dict "context" . "component" "webhook") | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      {{- with .Values.global.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "n8n.labels.component" (dict "context" . "component" "webhook") | nindent 8 }}
+        {{- with .Values.global.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "n8n.images.pullSecrets" (dict "images" (list .Values.main.image) "global" .Values.global) | nindent 6 }}
+      serviceAccountName: {{ include "n8n.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml (default .Values.global.podSecurityContext .Values.webhook.podSecurityContext) | nindent 8 }}
+      {{- with .Values.webhook.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.webhook.runtimeClassName }}
+      runtimeClassName: {{ .Values.webhook.runtimeClassName }}
+      {{- end }}
+      {{- if or .Values.webhook.waitMainNodeReady.enabled .Values.webhook.initContainers  }}
+      initContainers:
+      {{- end }}
+        {{- if .Values.webhook.waitMainNodeReady.enabled }}
+        - name: wait-for-main
+          image: {{ if .Values.global.image.registry }}{{ .Values.global.image.registry }}/{{ end }}busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+          {{- $overwriteSchema := default (default "http" (get .Values.main.extraEnvVars "N8N_PROTOCOL")) .Values.webhook.waitMainNodeReady.overwriteSchema }}
+          {{- $overwriteUrl := default (printf "%s.%s.svc.cluster.local:%d" (include "n8n.names.fullname" .) .Release.Namespace (.Values.global.service.port | int)) .Values.webhook.waitMainNodeReady.overwriteUrl }}
+          {{- $healthCheckPath := default "/healthz" .Values.webhook.waitMainNodeReady.healthCheckPath }}
+          {{- $additionalParameters := printf "--spider %s" (join " " .Values.webhook.waitMainNodeReady.additionalParameters) | trimSuffix " " }}
+          - |
+            until wget -q {{ $additionalParameters }} {{ $overwriteSchema }}://{{ $overwriteUrl }}{{ $healthCheckPath }}; do
+              echo "Waiting for main node to be ready..."
+              sleep 2
+            done
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
+        {{- end }}
+      {{- with .Values.webhook.initContainers }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "n8n.names.name" . }}-webhook
+          securityContext:
+            {{- toYaml (default .Values.global.containerSecurityContext .Values.webhook.securityContext) | nindent 12 }}
+          image: {{ include "n8n.images.image" (dict "imageRoot" .Values.main.image "global" .Values.global "chart" .Chart) }}
+          imagePullPolicy: {{ .Values.main.image.pullPolicy }}
+          command: ["n8n"]
+          args: ["webhook"]
+          ports:
+            - name: {{ .Values.global.service.name }}
+              containerPort: {{ .Values.global.service.port }}
+              protocol: TCP
+          startupProbe:
+            {{- toYaml .Values.webhook.startupProbe | nindent 12 }}
+          livenessProbe:
+            {{- $rootLiveness := .Values.livenessProbe | default dict }}
+            {{- $webhookLiveness := .Values.webhook.livenessProbe | default dict }}
+            {{- toYaml (merge $webhookLiveness $rootLiveness) | nindent 12 }}
+          readinessProbe:
+            {{- $rootReadiness := .Values.readinessProbe | default dict }}
+            {{- $webhookReadiness := .Values.webhook.readinessProbe | default dict }}
+            {{- toYaml (merge $webhookReadiness $rootReadiness) | nindent 12 }}
+          resources:
+            {{- toYaml (default .Values.global.resources .Values.webhook.resources) | nindent 12 }}
+          env:
+            {{- include "n8n.env" . | nindent 12 }}
+            - name: N8N_DISABLE_UI
+              value: "true"
+            - name: QUEUE_HEALTH_CHECK_ACTIVE
+              value: "true"
+            - name: N8N_RUNNERS_MODE
+              value: internal
+            - name: N8N_RUNNERS_TASK_TIMEOUT
+              value: {{ .Values.taskRunners.taskTimeout | quote }}
+            - name: N8N_RUNNERS_HEARTBEAT_INTERVAL
+              value: {{ .Values.taskRunners.taskHeartbeatInterval | quote }}
+            - name: N8N_RUNNERS_MAX_CONCURRENCY
+              value: {{ .Values.taskRunners.maxConcurrency | quote }}
+          {{- range $key, $value := (default .Values.global.extraEnvVars .Values.webhook.extraEnvVars) }}
+            - name: {{ upper $key }}
+              value: {{ $value | quote }}
+          {{- end }}
+          envFrom:
+            {{- include "n8n.envFrom" . | nindent 12 }}
+          {{- range (default .Values.extraSecretNamesForEnvFrom .Values.webhook.extraSecretNamesForEnvFrom) }}
+            - secretRef:
+                name: {{ . }}
+          {{- end }}
+          {{- if eq (include "n8n.webhook.hasVolumeMounts" .) "true" }}
+          volumeMounts:
+          {{- end }}
+          {{- if eq (include "n8n.postgres.ssl.hasCA" .) "true" }}
+            - name: pg-ssl-ca
+              mountPath: /home/node/certs/ca/ca.crt
+              subPath: ca.crt
+              readOnly: true
+          {{- end }}
+          {{- if eq (include "n8n.postgres.ssl.hasCert" .) "true" }}
+            - name: pg-ssl-cert
+              mountPath: /home/node/certs/cert/cert.crt
+              subPath: cert.crt
+              readOnly: true
+          {{- end }}
+          {{- if eq (include "n8n.postgres.ssl.hasKey" .) "true" }}
+            - name: pg-ssl-key
+              mountPath: /home/node/certs/key/cert.key
+              subPath: cert.key
+              readOnly: true
+          {{- end }}
+          {{- with (default .Values.volumeMounts .Values.webhook.volumeMounts) }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.webhook.extraContainers }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if eq (include "n8n.webhook.hasVolumes" .) "true" }}
+      volumes:
+      {{- end }}
+      {{- if eq (include "n8n.postgres.ssl.hasCA" .) "true" }}
+        - name: pg-ssl-ca
+          secret:
+            secretName: {{ default (printf "%s-pg-ssl-ca" (include "n8n.names.fullname" .)) .Values.db.postgresdb.ssl.existingCertificateAuthorityFileSecret.name }}
+            items:
+              - key: {{ default "ca.crt" .Values.db.postgresdb.ssl.existingCertificateAuthorityFileSecret.key }}
+                path: ca.crt
+      {{- end }}
+      {{- if eq (include "n8n.postgres.ssl.hasCert" .) "true" }}
+        - name: pg-ssl-cert
+          secret:
+            secretName: {{ default (printf "%s-pg-ssl-cert" (include "n8n.names.fullname" .)) .Values.db.postgresdb.ssl.existingCertFileSecret.name }}
+            items:
+              - key: {{ default "cert.crt" .Values.db.postgresdb.ssl.existingCertFileSecret.key }}
+                path: cert.crt
+      {{- end }}
+      {{- if eq (include "n8n.postgres.ssl.hasKey" .) "true" }}
+        - name: pg-ssl-key
+          secret:
+            secretName: {{ default (printf "%s-pg-ssl-key" (include "n8n.names.fullname" .)) .Values.db.postgresdb.ssl.existingPrivateKeyFileSecret.name }}
+            items:
+              - key: {{ default "cert.key" .Values.db.postgresdb.ssl.existingPrivateKeyFileSecret.key }}
+                path: cert.key
+      {{- end }}
+      {{- with (default .Values.volumes .Values.webhook.volumes) }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (default .Values.global.nodeSelector .Values.webhook.nodeSelector) }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (default .Values.global.affinity .Values.webhook.affinity) }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (default .Values.global.tolerations .Values.webhook.tolerations) }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.dnsPolicy }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- end }}
+      {{- with .Values.dnsConfig }}
+      dnsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

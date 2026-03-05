@@ -1,0 +1,48 @@
+{{- if .Values.global.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "n8n.names.fullname" . }}
+  labels:
+    {{- include "n8n.labels.component" (dict "context" . "component" "main") | nindent 4 }}
+    {{- with .Values.global.service.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.global.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.global.service.type }}
+  ports:
+    - port: {{ .Values.global.service.port }}
+      targetPort: {{ .Values.global.service.name }}
+      protocol: TCP
+      name: {{ .Values.global.service.name }}
+  selector:
+    {{- include "n8n.labels.matchLabelsComponent" (dict "context" . "component" "main") | nindent 4 }}
+  {{- if or (.Values.main.forceToUseStatefulset) (and .Values.main.persistence.enabled (gt (int .Values.main.count) 1) (not .Values.main.persistence.existingClaim) (eq .Values.main.persistence.accessMode "ReadWriteOnce")) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "n8n.names.fullname" . }}-headless
+  labels:
+    {{- include "n8n.labels.component" (dict "context" . "component" "main") | nindent 4 }}
+    {{- with .Values.global.service.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.global.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "n8n.labels.matchLabelsComponent" (dict "context" . "component" "main") | nindent 4 }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.global.service.port }}
+      targetPort: {{ .Values.global.service.name }}
+  {{- end }}
+{{- end }}

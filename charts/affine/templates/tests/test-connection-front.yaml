@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "front.fullname" . }}-test-connection"
+  labels:
+    {{- include "front.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: "{{ .Values.global.imageRegistry }}/busybox"
+      imagePullPolicy: IfNotPresent
+      command: ['wget']
+      args: ['{{ .Values.front.services.sync.name }}:{{ .Values.front.services.sync.port }}']
+  restartPolicy: Never

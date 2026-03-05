@@ -1,0 +1,70 @@
+{{- if .Values.graphql.migration.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "graphql.fullname" . }}-database-migration
+  labels:
+    {{- include "graphql.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.graphql.migration.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  template:
+    metadata:
+      {{- with .Values.graphql.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "graphql.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "graphql.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Chart.Name }}
+        securityContext:
+          {{- toYaml .Values.containerSecurityContext | nindent 10 }}
+        image: "{{ include "affine.image" . }}"
+        imagePullPolicy: {{ .Values.global.pullPolicy }}
+        command: ["yarn", "predeploy"]
+        env:
+          - name: AFFINE_PRIVATE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "affine.encryption.secretName" . }}
+                key: {{ .Values.encryption.existingSecretKey }}
+          - name: SERVER_FLAVOR
+            value: "graphql"
+          - name: REDIS_SERVER_ENABLED
+            value: "true"
+          {{- include "affine.env" . | nindent 10 }}
+        resources:
+          requests:
+            cpu: '500m'
+            memory: '512Mi'
+        volumeMounts:
+          {{- if .Values.persistence.enabled }}
+          - name: data
+            mountPath: {{ .Values.persistence.mountPath }}
+          {{- end }}
+          {{- if .Values.config }}
+          - name: config
+            mountPath: /root/.affine/config/config.json
+            subPath: config.json
+          {{- end }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "affine.fullname" . }}
+        {{- end }}
+        {{- if .Values.config }}
+        - name: config
+          secret:
+            secretName: {{ include "affine.fullname" . }}-config
+        {{- end }}
+      restartPolicy: Never
+  backoffLimit: 1
+{{- end }}

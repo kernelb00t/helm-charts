@@ -1,0 +1,297 @@
+# Global settings
+global:
+  imagePullSecrets: []
+  storageClass: ""
+  envVars: []
+  # -- Image registry
+  registry: ghcr.io
+  repository: toeverything/affine
+  # -- Image tag (defaults to chart appVersion)
+  tag: ""
+  # Override image tag with digest (e.g. "sha256:abc123")
+  digest: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# Application settings
+app:
+  # Deployment type: "selfhosted" (recommended). "affine-cloud" is NOT tested and not supported.
+  type: "selfhosted"
+  # Server bind host
+  host: "0.0.0.0"
+  # Server port
+  port: 3010
+  # Set true if served over HTTPS
+  https: false
+  # Sub-path prefix (e.g. "/affine")
+  path: ""
+  # -- Public URL — **required** (e.g. `https://affine.example.com`)
+  externalUrl: ""
+  # Environment: "production" or "canary"
+  env: "production"
+  # -- Log level: `verbose` \| `debug` \| `log` \| `warn` \| `error`
+  logLevel: "log"
+
+# Application-level JSON config passed to AFFiNE server
+config:
+  # [AI Copilot] Configure LLM providers (OpenAI, Gemini, etc.)
+  copilot:
+    enabled: false
+  #   providers:
+  #     openai:
+  #       apiKey: "sk-..."
+  #       baseURL: "https://api.openai.com/v1"
+
+  # [Object Storage] S3 / R2 / local fs
+  # Supported providers: "aws-s3" | "cloudflare-r2" | "fs"
+  # storages:
+  #   blob:
+  #     provider: "aws-s3"  # "aws-s3" | "cloudflare-r2" | "fs"
+  #     bucket: "affine-blobs"
+  #     config:
+  #       endpoint: "https://s3.us-east-1.amazonaws.com"
+  #       region: "us-east-1"  # MinIO: any value, e.g. "local"
+  #       forcePathStyle: true  # required for MinIO
+  #       credentials:
+  #         accessKeyId: ""
+  #         secretAccessKey: ""
+  #   avatar:  # user avatar storage, independent from blob, defaults to fs
+  #     provider: "aws-s3"
+  #     bucket: "affine-avatars"
+  #     config:
+  #       endpoint: "https://s3.us-east-1.amazonaws.com"
+  #       region: "us-east-1"
+  #       forcePathStyle: true
+  #       credentials:
+  #         accessKeyId: ""
+  #         secretAccessKey: ""
+
+  # [Redis Advanced] Sentinel / Cluster (overrides db.redis)
+  # redis:
+  #   db: 0
+  #   password: ""
+  #   ioredis:
+  #     sentinels:
+  #       - host: "redis-sentinel-1"
+  #         port: 26379
+  #     name: "mymaster"
+
+  # [Mailer] SMTP configuration
+  # mailer:
+  #   SMTP:
+  #     host: "smtp.example.com"
+  #     port: 465
+  #     username: ""
+  #     password: ""
+  #     sender: "AFFiNE <no-reply@affine.pro>"
+
+# Container-level security context
+containerSecurityContext: {}
+
+# Doc service (real-time collaboration)
+doc:
+  replicaCount: 1
+  nameOverride: ""
+  fullnameOverride: ""
+  command: []
+  args: []
+  # Extra environment variables for doc container
+  extraEnvVars: []
+  resources:
+    limits: {}
+    requests:
+      cpu: "0.5"
+      memory: "1Gi"
+  podAnnotations: {}
+  podLabels: {}
+  service:
+    type: ClusterIP
+    port: 3010
+    nodePort: ""
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: affine.local
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls: []
+  httpRoute:
+    enabled: false
+    parentRefs: []
+    hostnames: []
+
+# Encryption key (ECDSA private key for signing)
+encryption:
+  # Name of existing Secret; auto-generated and persisted if empty
+  existingSecret: ""
+  # Key name within the Secret
+  existingSecretKey: "key"
+
+# Experimental features (canary/dev only)
+experimental:
+  manifests:
+    # Note: Only effective when app.env is "canary". Ignored in production.
+    web: {}
+    mobile: {}
+
+# External database / cache / indexer
+db:
+  # PostgreSQL connection settings
+  database:
+    # -- PostgreSQL host
+    host: "pg-postgresql"
+    # PostgreSQL port
+    port: 5432
+    # PostgreSQL username
+    user: "postgres"
+    # PostgreSQL database name
+    database: "affine"
+    # Direct host for Prisma migration, bypasses PgBouncer/connection poolers (optional)
+    migrationHost: ""
+    # Plain-text password (ignored when existingSecret is set)
+    password: ""
+    # -- Existing Secret containing `postgres-password` key
+    existingSecret: ""
+    # Key within the Secret holding the password
+    existingSecretPasswordKey: "postgres-password"
+
+  # External search indexer
+  # Supported providers: manticoresearch | elasticsearch
+  indexer:
+    # -- Enable external search indexer
+    enabled: false
+    # -- Indexer provider: `manticoresearch` \| `elasticsearch`
+    provider: manticoresearch
+    # Indexer endpoint URL (e.g. "http://manticoresearch.default.svc.cluster.local:9308")
+    endpoint: ""
+    # API key (optional for elasticsearch)
+    # existingSecret: ""
+    # existingSecretApiKey: "indexer-apiKey"
+    # Basic auth username
+    username: ""
+    # Basic auth password
+    password: ""
+
+  # Redis connection settings
+  redis:
+    # -- Redis host
+    host: "redis-master"
+    # Redis port
+    port: 6379
+    # Redis ACL username (leave empty for default user)
+    username: ""
+    # Plain-text password (ignored when existingSecret is set)
+    password: ""
+    # Redis database index
+    database: 0
+    # -- Existing Secret containing `redis-password` key
+    existingSecret: ""
+    # Key within the Secret holding the password
+    existingSecretPasswordKey: "redis-password"
+
+# Front service (static files, WebSocket, reverse proxy to graphql/doc)
+front:
+  replicaCount: 1
+  nameOverride: ""
+  fullnameOverride: ""
+  command: []
+  args: []
+  # Extra env vars for front container only
+  extraEnvVars: []
+  resources:
+    limits: {}
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+  podAnnotations: {}
+  podLabels: {}
+  # Internal sync and renderer services
+  services:
+    sync:
+      name: affine-sync
+      type: ClusterIP
+      port: 3010
+      annotations: {}
+    renderer:
+      name: affine-renderer
+      type: ClusterIP
+      port: 3010
+      annotations: {}
+  service:
+    type: ClusterIP
+    port: 3010
+    nodePort: ""
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: affine.local
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls: []
+  # Gateway API HTTPRoute (routes /graphql /api to graphql service, rest to front)
+  httpRoute:
+    # -- Enable Gateway API HTTPRoute
+    enabled: false
+    parentRefs: []
+    hostnames: []
+
+nameOverride: ""
+
+fullnameOverride: ""
+
+# GraphQL service (/graphql and /api endpoints)
+graphql:
+  replicaCount: 1
+  nameOverride: ""
+  fullnameOverride: ""
+  command: []
+  args: []
+  extraEnvVars: []
+  resources:
+    limits: {}
+    requests:
+      cpu: "2"
+      memory: "2Gi"
+  podAnnotations: {}
+  podLabels: {}
+  service:
+    type: ClusterIP
+    port: 3010
+    nodePort: ""
+  # Prisma database migration Job (runs as Helm hook before upgrade)
+  migration:
+    enabled: true
+    annotations:
+      "helm.sh/hook": post-install,pre-upgrade
+      "helm.sh/hook-weight": "-1"
+      "helm.sh/hook-delete-policy": before-hook-creation
+
+
+# Persistent storage (required when using "fs" blob storage provider)
+persistence:
+  # -- Enable PVC for blob/avatar storage
+  enabled: false
+  # StorageClass for PVC (overrides global.storageClass)
+  storageClass: ""
+  accessModes:
+    - ReadWriteMany
+  size: 10Gi
+  annotations: {}
+  mountPath: /root/.affine
+
+# Pod-level security context
+podSecurityContext:
+  fsGroup: 1001
+
+# ServiceAccount
+serviceAccount:
+  create: true
+  # Defaults to release fullname if empty
+  name: ""
+  annotations: {}

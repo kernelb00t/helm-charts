@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "doc.fullname" . }}
+  labels:
+    {{- include "doc.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.doc.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "doc.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.doc.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "doc.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "doc.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          image: "{{ include "affine.image" . }}"
+          imagePullPolicy: {{ .Values.global.pullPolicy }}
+          env:
+            - name: AFFINE_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "affine.encryption.secretName" . }}
+                  key: {{ .Values.encryption.existingSecretKey }}
+            - name: SERVER_FLAVOR
+              value: "doc"
+            {{- include "affine.nodeOptions" (dict "context" . "default" "--max-old-space-size=4096" "componentEnv" .Values.doc.extraEnvVars) | nindent 12 }}
+            - name: REDIS_SERVER_ENABLED
+              value: "true"
+            {{- include "affine.env" . | nindent 12 }}
+            {{- range .Values.doc.extraEnvVars }}
+            {{- if ne .name "NODE_OPTIONS" }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.doc.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /info
+              port: http
+            initialDelaySeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /info
+              port: http
+            initialDelaySeconds: 20
+          resources:
+            {{- toYaml .Values.doc.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
+            {{- if .Values.config }}
+            - name: config
+              mountPath: /root/.affine/config/config.json
+              subPath: config.json
+            {{- end }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "affine.fullname" . }}
+        {{- end }}
+        {{- if .Values.config }}
+        - name: config
+          secret:
+            secretName: {{ include "affine.fullname" . }}-config
+        {{- end }}
+      {{- with .Values.doc.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.doc.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.doc.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
