@@ -2,6 +2,27 @@ apiVersion: v1
 entries:
   affine:
   - apiVersion: v2
+    appVersion: 0.26.2
+    created: "2026-03-05T14:29:06.921351557Z"
+    description: Helm chart for AFFiNE - The next-gen knowledge base.
+    digest: 3cbcf57a629c8a8ecb67cf30888af5cfb33e5b1495857b6c4fcc1dd55c220ab5
+    home: https://affine.pro
+    icon: https://affine.pro/favicon.ico
+    keywords:
+    - affine
+    - knowledge-base
+    - collaboration
+    - productivity
+    kubeVersion: '>=1.24.0-0'
+    name: affine
+    sources:
+    - https://github.com/toeverything/AFFiNE
+    - https://github.com/dalamudx/helm-charts
+    type: application
+    urls:
+    - https://github.com/dalamudx/helm-charts/releases/download/affine-1.0.3/affine-1.0.3.tgz
+    version: 1.0.3
+  - apiVersion: v2
     appVersion: 0.26.0
     created: "2026-03-05T14:28:07.077508556Z"
     description: Helm chart for AFFiNE - The next-gen knowledge base.
@@ -418,4 +439,4 @@ entries:
     urls:
     - https://github.com/dalamudx/helm-charts/releases/download/n8n-1.0.1/n8n-1.0.1.tgz
     version: 1.0.1
-generated: "2026-03-05T14:28:07.219537834Z"
+generated: "2026-03-05T14:29:07.13239675Z"
