@@ -1874,3 +1874,69 @@ tests:
             key: client.key
   asserts:
   - matchSnapshot: {}
+- it: should configure python and general runner environment variables when set
+  set:
+    db:
+      type: postgresdb
+    worker:
+      mode: queue
+      count: 2
+      autoscaling:
+        enabled: false
+      persistence:
+        enabled: true
+        accessMode: "ReadWriteOnce"
+    taskRunners:
+      mode: internal
+      maxPayload: "200000000"
+      blockEnvAccess: false
+      allowPrototypeMutation: true
+    nodes:
+      builtin:
+        pythonStdlibAllow: "math,json"
+        pythonBuiltinsDeny: "eval"
+      external:
+        pythonExternalAllow: "requests"
+  asserts:
+  - contains:
+      path: spec.template.spec.containers[?(@.name == "n8n-worker")].env
+      content:
+        name: N8N_RUNNERS_STDLIB_ALLOW
+        value: "math,json"
+      any: true
+    template: worker/statefulset.yaml
+  - contains:
+      path: spec.template.spec.containers[?(@.name == "n8n-worker")].env
+      content:
+        name: N8N_RUNNERS_BUILTINS_DENY
+        value: "eval"
+      any: true
+    template: worker/statefulset.yaml
+  - contains:
+      path: spec.template.spec.containers[?(@.name == "n8n-worker")].env
+      content:
+        name: N8N_RUNNERS_EXTERNAL_ALLOW
+        value: "requests"
+      any: true
+    template: worker/statefulset.yaml
+  - contains:
+      path: spec.template.spec.containers[?(@.name == "n8n-worker")].env
+      content:
+        name: N8N_RUNNERS_MAX_PAYLOAD
+        value: "200000000"
+      any: true
+    template: worker/statefulset.yaml
+  - contains:
+      path: spec.template.spec.containers[?(@.name == "n8n-worker")].env
+      content:
+        name: N8N_BLOCK_RUNNER_ENV_ACCESS
+        value: "false"
+      any: true
+    template: worker/statefulset.yaml
+  - contains:
+      path: spec.template.spec.containers[?(@.name == "n8n-worker")].env
+      content:
+        name: N8N_RUNNERS_ALLOW_PROTOTYPE_MUTATION
+        value: "true"
+      any: true
+    template: worker/statefulset.yaml

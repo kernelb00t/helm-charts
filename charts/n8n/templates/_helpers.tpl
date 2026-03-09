@@ -445,24 +445,53 @@ Standard environment variables
       name: {{ default (printf "%s-s3-secret" (include "n8n.names.fullname" .)) .Values.binaryData.s3.existingSecret }}
       key: secret-access-key
 {{- end }}
-{{- if and .Values.nodes.builtin.enabled (eq .Values.taskRunners.mode "internal") }}
+{{- if eq .Values.taskRunners.mode "internal" }}
+{{- include "n8n.runners.env" . | nindent 0 }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Runners environment variables (for internal and external task runners)
+*/}}
+{{- define "n8n.runners.env" -}}
+{{- if .Values.nodes.builtin.enabled }}
 - name: NODE_FUNCTION_ALLOW_BUILTIN
   value: {{ if .Values.nodes.builtin.modules }}{{ join "," .Values.nodes.builtin.modules }}{{ else }}"*"{{ end }}
 {{- end }}
-{{- if and .Values.nodes.external.allowAll (eq .Values.taskRunners.mode "internal") }}
+{{- if .Values.nodes.builtin.pythonStdlibAllow }}
+- name: N8N_RUNNERS_STDLIB_ALLOW
+  value: {{ .Values.nodes.builtin.pythonStdlibAllow | quote }}
+{{- end }}
+{{- if .Values.nodes.builtin.pythonBuiltinsDeny }}
+- name: N8N_RUNNERS_BUILTINS_DENY
+  value: {{ .Values.nodes.builtin.pythonBuiltinsDeny | quote }}
+{{- end }}
+{{- if .Values.nodes.external.allowAll }}
 - name: NODE_FUNCTION_ALLOW_EXTERNAL
   value: "*"
-{{- else if and .Values.nodes.external.packages (eq .Values.taskRunners.mode "internal") }}
+{{- else if .Values.nodes.external.packages }}
 - name: NODE_FUNCTION_ALLOW_EXTERNAL
   value: {{ include "n8n.packageNames" .Values.nodes.external.packages | quote }}
 {{- end }}
-{{- if .Values.nodes.external.stdlibAllow }}
-- name: N8N_RUNNERS_STDLIB_ALLOW
-  value: {{ .Values.nodes.external.stdlibAllow | quote }}
-{{- end }}
-{{- if and .Values.nodes.external.reinstallMissingPackages (eq .Values.taskRunners.mode "internal") }}
+{{- if .Values.nodes.external.reinstallMissingPackages }}
 - name: N8N_REINSTALL_MISSING_PACKAGES
   value: "true"
+{{- end }}
+{{- if .Values.nodes.external.pythonExternalAllow }}
+- name: N8N_RUNNERS_EXTERNAL_ALLOW
+  value: {{ .Values.nodes.external.pythonExternalAllow | quote }}
+{{- end }}
+{{- if hasKey .Values.taskRunners "maxPayload" }}
+- name: N8N_RUNNERS_MAX_PAYLOAD
+  value: {{ .Values.taskRunners.maxPayload | quote }}
+{{- end }}
+{{- if hasKey .Values.taskRunners "blockEnvAccess" }}
+- name: N8N_BLOCK_RUNNER_ENV_ACCESS
+  value: {{ .Values.taskRunners.blockEnvAccess | quote }}
+{{- end }}
+{{- if hasKey .Values.taskRunners "allowPrototypeMutation" }}
+- name: N8N_RUNNERS_ALLOW_PROTOTYPE_MUTATION
+  value: {{ .Values.taskRunners.allowPrototypeMutation | quote }}
 {{- end }}
 {{- end -}}
 
@@ -492,6 +521,12 @@ Standard environment variable sources
     name: {{ template "n8n.names.fullname" . }}-metrics-configmap
 - configMapRef:
     name: {{ template "n8n.names.fullname" . }}-binary-data-configmap
+- configMapRef:
+    name: {{ template "n8n.names.fullname" . }}-security-configmap
+- configMapRef:
+    name: {{ template "n8n.names.fullname" . }}-workflows-configmap
+- configMapRef:
+    name: {{ template "n8n.names.fullname" . }}-ai-assistant-configmap
 {{- if .Values.license.enabled }}
 - configMapRef:
     name: {{ template "n8n.names.fullname" . }}-license-configmap

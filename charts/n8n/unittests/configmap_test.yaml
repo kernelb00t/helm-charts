@@ -1126,3 +1126,231 @@ tests:
       appVersion: 1.0.0
     asserts:
       - matchSnapshot: { }
+
+  - it: security-configmap should set N8N_SECURE_COOKIE to true by default
+    documentSelector:
+      path: metadata.name
+      value: n8n-security-configmap
+    asserts:
+      - equal:
+          path: data.N8N_SECURE_COOKIE
+          value: "true"
+
+  - it: security-configmap should set N8N_SECURE_COOKIE to false when security.secureCookie is false
+    set:
+      security:
+        secureCookie: false
+    documentSelector:
+      path: metadata.name
+      value: n8n-security-configmap
+    asserts:
+      - equal:
+          path: data.N8N_SECURE_COOKIE
+          value: "false"
+
+  - it: security-configmap should set N8N_BLOCK_ENV_ACCESS_IN_NODE to false by default
+    documentSelector:
+      path: metadata.name
+      value: n8n-security-configmap
+    asserts:
+      - equal:
+          path: data.N8N_BLOCK_ENV_ACCESS_IN_NODE
+          value: "false"
+
+  - it: security-configmap should set N8N_BLOCK_ENV_ACCESS_IN_NODE to true when security.blockEnvAccessInNode is true
+    set:
+      security:
+        blockEnvAccessInNode: true
+    documentSelector:
+      path: metadata.name
+      value: n8n-security-configmap
+    asserts:
+      - equal:
+          path: data.N8N_BLOCK_ENV_ACCESS_IN_NODE
+          value: "true"
+
+  - it: security-configmap should set N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES to true by default
+    documentSelector:
+      path: metadata.name
+      value: n8n-security-configmap
+    asserts:
+      - equal:
+          path: data.N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES
+          value: "true"
+
+  - it: security-configmap should set N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES to false when security.blockFileAccessToN8nFiles is false
+    set:
+      security:
+        blockFileAccessToN8nFiles: false
+    documentSelector:
+      path: metadata.name
+      value: n8n-security-configmap
+    asserts:
+      - equal:
+          path: data.N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES
+          value: "false"
+
+  - it: security-configmap should not set N8N_RESTRICT_FILE_ACCESS_TO when security.restrictFileAccessTo is empty
+    documentSelector:
+      path: metadata.name
+      value: n8n-security-configmap
+    asserts:
+      - notExists:
+          path: data.N8N_RESTRICT_FILE_ACCESS_TO
+
+  - it: security-configmap should set N8N_RESTRICT_FILE_ACCESS_TO when security.restrictFileAccessTo is set
+    set:
+      security:
+        restrictFileAccessTo: "/data/uploads;/tmp"
+    documentSelector:
+      path: metadata.name
+      value: n8n-security-configmap
+    asserts:
+      - equal:
+          path: data.N8N_RESTRICT_FILE_ACCESS_TO
+          value: "/data/uploads;/tmp"
+
+  - it: workflows-configmap should set N8N_ONBOARDING_FLOW_DISABLED to false by default
+    documentSelector:
+      path: metadata.name
+      value: n8n-workflows-configmap
+    asserts:
+      - equal:
+          path: data.N8N_ONBOARDING_FLOW_DISABLED
+          value: "false"
+
+  - it: workflows-configmap should set N8N_ONBOARDING_FLOW_DISABLED to true when workflows.onboardingFlowDisabled is true
+    set:
+      workflows:
+        onboardingFlowDisabled: true
+    documentSelector:
+      path: metadata.name
+      value: n8n-workflows-configmap
+    asserts:
+      - equal:
+          path: data.N8N_ONBOARDING_FLOW_DISABLED
+          value: "true"
+
+  - it: workflows-configmap should set N8N_WORKFLOW_ACTIVATION_BATCH_SIZE to 1 by default
+    documentSelector:
+      path: metadata.name
+      value: n8n-workflows-configmap
+    asserts:
+      - equal:
+          path: data.N8N_WORKFLOW_ACTIVATION_BATCH_SIZE
+          value: "1"
+
+  - it: workflows-configmap should set N8N_WORKFLOW_ACTIVATION_BATCH_SIZE when workflows.activationBatchSize is set
+    set:
+      workflows:
+        activationBatchSize: 10
+    documentSelector:
+      path: metadata.name
+      value: n8n-workflows-configmap
+    asserts:
+      - equal:
+          path: data.N8N_WORKFLOW_ACTIVATION_BATCH_SIZE
+          value: "10"
+
+  - it: workflows-configmap should set N8N_WORKFLOW_CALLER_POLICY_DEFAULT_OPTION to workflowsFromSameOwner by default
+    documentSelector:
+      path: metadata.name
+      value: n8n-workflows-configmap
+    asserts:
+      - equal:
+          path: data.N8N_WORKFLOW_CALLER_POLICY_DEFAULT_OPTION
+          value: workflowsFromSameOwner
+
+  - it: workflows-configmap should set N8N_WORKFLOW_CALLER_POLICY_DEFAULT_OPTION when workflows.callerPolicyDefaultOption is set to any
+    set:
+      workflows:
+        callerPolicyDefaultOption: "any"
+    documentSelector:
+      path: metadata.name
+      value: n8n-workflows-configmap
+    asserts:
+      - equal:
+          path: data.N8N_WORKFLOW_CALLER_POLICY_DEFAULT_OPTION
+          value: "any"
+
+  - it: workflows-configmap should set N8N_WORKFLOW_TAGS_DISABLED to false by default
+    documentSelector:
+      path: metadata.name
+      value: n8n-workflows-configmap
+    asserts:
+      - equal:
+          path: data.N8N_WORKFLOW_TAGS_DISABLED
+          value: "false"
+
+  - it: workflows-configmap should set N8N_WORKFLOW_TAGS_DISABLED to true when workflows.tagsDisabled is true
+    set:
+      workflows:
+        tagsDisabled: true
+    documentSelector:
+      path: metadata.name
+      value: n8n-workflows-configmap
+    asserts:
+      - equal:
+          path: data.N8N_WORKFLOW_TAGS_DISABLED
+          value: "true"
+
+  - it: workflows-configmap should set WORKFLOWS_DEFAULT_NAME to My workflow by default
+    documentSelector:
+      path: metadata.name
+      value: n8n-workflows-configmap
+    asserts:
+      - equal:
+          path: data.WORKFLOWS_DEFAULT_NAME
+          value: "My workflow"
+
+  - it: workflows-configmap should set WORKFLOWS_DEFAULT_NAME when workflows.defaultName is set
+    set:
+      workflows:
+        defaultName: "My Custom Workflow"
+    documentSelector:
+      path: metadata.name
+      value: n8n-workflows-configmap
+    asserts:
+      - equal:
+          path: data.WORKFLOWS_DEFAULT_NAME
+          value: "My Custom Workflow"
+
+  - it: ai-assistant-configmap should not set N8N_AI_ASSISTANT_BASE_URL when aiAssistant.baseUrl is empty
+    documentSelector:
+      path: metadata.name
+      value: n8n-ai-assistant-configmap
+    asserts:
+      - notExists:
+          path: data.N8N_AI_ASSISTANT_BASE_URL
+
+  - it: ai-assistant-configmap should set N8N_AI_ASSISTANT_BASE_URL when aiAssistant.baseUrl is set
+    set:
+      aiAssistant:
+        baseUrl: "https://ai-assistant.mydomain.com"
+    documentSelector:
+      path: metadata.name
+      value: n8n-ai-assistant-configmap
+    asserts:
+      - equal:
+          path: data.N8N_AI_ASSISTANT_BASE_URL
+          value: "https://ai-assistant.mydomain.com"
+
+  - it: public-api-configmap should not set N8N_PATH when n8nPath is the default /
+    documentSelector:
+      path: metadata.name
+      value: n8n-public-api-configmap
+    asserts:
+      - notExists:
+          path: data.N8N_PATH
+
+  - it: public-api-configmap should set N8N_PATH when n8nPath is a non-root path
+    set:
+      n8nPath: "/n8n/"
+    documentSelector:
+      path: metadata.name
+      value: n8n-public-api-configmap
+    asserts:
+      - equal:
+          path: data.N8N_PATH
+          value: "/n8n/"
+

@@ -172,6 +172,50 @@ should match snapshot of postgres ssl certificate values:
         helm.sh/chart: n8n-1.0.0
       name: n8n-binary-data-configmap
   11: |
+    apiVersion: v1
+    data:
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES: "true"
+      N8N_SECURE_COOKIE: "true"
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-security-configmap
+  12: |
+    apiVersion: v1
+    data:
+      N8N_ONBOARDING_FLOW_DISABLED: "false"
+      N8N_WORKFLOW_ACTIVATION_BATCH_SIZE: "1"
+      N8N_WORKFLOW_CALLER_POLICY_DEFAULT_OPTION: workflowsFromSameOwner
+      N8N_WORKFLOW_TAGS_DISABLED: "false"
+      WORKFLOWS_DEFAULT_NAME: My workflow
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-workflows-configmap
+  13: |
+    apiVersion: v1
+    data: null
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-ai-assistant-configmap
+  14: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -198,7 +242,7 @@ should match snapshot of postgres ssl certificate values:
       template:
         metadata:
           annotations:
-            checksum/config: 197c1a0258e684536c12a776b435aa236c58dc5d301a83250d8993fabc633eb5
+            checksum/config: cc197e87bd88697f819bc19ac4ef4848a3f63bbc254f27c13250141b085daaa1
           labels:
             app.kubernetes.io/component: mcp-webhook
             app.kubernetes.io/instance: n8n
@@ -247,6 +291,14 @@ should match snapshot of postgres ssl certificate values:
                       key: redis-password
                       name: n8n-redis
                       optional: true
+                - name: N8N_RUNNERS_BUILTINS_DENY
+                  value: eval,exec,compile,open,input,breakpoint,getattr,object,type,vars,setattr,delattr,hasattr,dir,memoryview,__build_class__,globals,locals
+                - name: N8N_RUNNERS_MAX_PAYLOAD
+                  value: "1073741824"
+                - name: N8N_BLOCK_RUNNER_ENV_ACCESS
+                  value: "true"
+                - name: N8N_RUNNERS_ALLOW_PROTOTYPE_MUTATION
+                  value: "false"
                 - name: N8N_DISABLE_UI
                   value: "true"
                 - name: QUEUE_HEALTH_CHECK_ACTIVE
@@ -280,6 +332,12 @@ should match snapshot of postgres ssl certificate values:
                     name: n8n-metrics-configmap
                 - configMapRef:
                     name: n8n-binary-data-configmap
+                - configMapRef:
+                    name: n8n-security-configmap
+                - configMapRef:
+                    name: n8n-workflows-configmap
+                - configMapRef:
+                    name: n8n-ai-assistant-configmap
                 - secretRef:
                     name: n8n-encryption-key-secret-v2
               image: docker.io/n8nio/n8n:1.0.0

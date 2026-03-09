@@ -110,6 +110,9 @@ data:
   N8N_PUBLIC_API_DISABLED: {{ not .Values.api.enabled | quote }}
   N8N_PUBLIC_API_ENDPOINT: {{ .Values.api.path | quote }}
   N8N_PUBLIC_API_SWAGGERUI_DISABLED: {{ not .Values.api.swagger.enabled | quote }}
+{{- if and .Values.n8nPath (ne .Values.n8nPath "/") }}
+  N8N_PATH: {{ .Values.n8nPath | quote }}
+{{- end }}
 {{- if and (eq .Values.db.type "postgresdb") (or (eq .Values.worker.mode "queue") (eq .Values.webhook.mode "queue")) }}
 ---
 apiVersion: v1
@@ -252,4 +255,42 @@ data:
   {{- if hasKey .Values.binaryData.s3 "forcePathStyle" }}
   N8N_BINARY_DATA_S3_FORCE_PATH_STYLE: {{ .Values.binaryData.s3.forcePathStyle | quote }}
   {{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "n8n.names.fullname" . }}-security-configmap
+  labels:
+    {{- include "n8n.labels.standard" . | nindent 4 }}
+data:
+  N8N_SECURE_COOKIE: {{ .Values.security.secureCookie | quote }}
+  N8N_BLOCK_ENV_ACCESS_IN_NODE: {{ .Values.security.blockEnvAccessInNode | quote }}
+  N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES: {{ .Values.security.blockFileAccessToN8nFiles | quote }}
+{{- if .Values.security.restrictFileAccessTo }}
+  N8N_RESTRICT_FILE_ACCESS_TO: {{ .Values.security.restrictFileAccessTo | quote }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "n8n.names.fullname" . }}-workflows-configmap
+  labels:
+    {{- include "n8n.labels.standard" . | nindent 4 }}
+data:
+  N8N_ONBOARDING_FLOW_DISABLED: {{ .Values.workflows.onboardingFlowDisabled | quote }}
+  N8N_WORKFLOW_ACTIVATION_BATCH_SIZE: {{ .Values.workflows.activationBatchSize | quote }}
+  N8N_WORKFLOW_CALLER_POLICY_DEFAULT_OPTION: {{ .Values.workflows.callerPolicyDefaultOption | quote }}
+  N8N_WORKFLOW_TAGS_DISABLED: {{ .Values.workflows.tagsDisabled | quote }}
+  WORKFLOWS_DEFAULT_NAME: {{ .Values.workflows.defaultName | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "n8n.names.fullname" . }}-ai-assistant-configmap
+  labels:
+    {{- include "n8n.labels.standard" . | nindent 4 }}
+data:
+{{- if .Values.aiAssistant.baseUrl }}
+  N8N_AI_ASSISTANT_BASE_URL: {{ .Values.aiAssistant.baseUrl | quote }}
 {{- end }}

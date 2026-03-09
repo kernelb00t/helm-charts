@@ -78,14 +78,18 @@ nodes:
     modules: []
       # - crypto
       # - fs
+    # Python standard library modules that you can use in the Code node. Use * to allow all stdlib modules.
+    pythonStdlibAllow: ""
+    # Python built-ins that you can't use in the Code node. Set to an empty string to allow all built-ins.
+    pythonBuiltinsDeny: "eval,exec,compile,open,input,breakpoint,getattr,object,type,vars,setattr,delattr,hasattr,dir,memoryview,__build_class__,globals,locals"
   # External npm packages to install and allow in the Code node
   external:
     # -- Allow all external npm packages in Code node.
     allowAll: false
     # Whether to reinstall missing packages. For more information, see https://docs.n8n.io/integrations/community-nodes/troubleshooting/#error-missing-packages
     reinstallMissingPackages: false
-    # Standard library packages to allow
-    stdlibAllow: ""
+    # Third-party Python modules that are allowed to be used in the Code node. Use * to allow all external modules.
+    pythonExternalAllow: ""
     # List of npm package names and versions (e.g., "package-name@1.0.0")
     packages: []
       # - "moment@2.29.4"
@@ -740,6 +744,12 @@ taskRunners:
   taskHeartbeatInterval: 30
   # The maximum concurrency for the task
   maxConcurrency: 5
+  # The maximum payload size in bytes for task runners
+  maxPayload: "1073741824"
+  # Block access to the runner's environment from within Python code tasks
+  blockEnvAccess: true
+  # Allow prototype mutation in the Code node (JavaScript)
+  allowPrototypeMutation: false
 
   broker:
     address: "127.0.0.1"
@@ -771,6 +781,10 @@ workflowHistory:
   # Time (in hours) to keep workflow history versions for. To disable it, use -1 as a value
   pruneTime: 336
 
+# -- The base path under which n8n runs. Useful for serving n8n at a sub-path (e.g. /n8n/). Include a trailing slash.
+# Maps to N8N_PATH environment variable.
+n8nPath: "/"
+
 # -- If you install n8n first time, you can keep this empty and it will be auto generated and never change again. If you already have a encryption key generated before, please use it here.
 encryptionKey: ""
 
@@ -785,6 +799,46 @@ defaultLocale: en
 
 # graceful shutdown timeout in seconds
 gracefulShutdownTimeout: 30
+
+# Security configurations for n8n. For more information see: https://docs.n8n.io/hosting/configuration/environment-variables/security/
+security:
+  # -- Whether to block access to the runner's environment from within Node.js code tasks.
+  # Maps to N8N_BLOCK_ENV_ACCESS_IN_NODE. Default is false.
+  blockEnvAccessInNode: false
+  # -- Whether to block access to sensitive n8n files from within code nodes.
+  # Maps to N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES. Default is true.
+  blockFileAccessToN8nFiles: true
+  # -- Semicolon-separated list of additional directories that code nodes are allowed to access.
+  # Maps to N8N_RESTRICT_FILE_ACCESS_TO. Leave empty to use defaults.
+  restrictFileAccessTo: ""
+  # -- Whether to use secure cookies (HTTPS only). Set to false in HTTP-only environments.
+  # Maps to N8N_SECURE_COOKIE. Default is true.
+  secureCookie: true
+
+# Workflow-related configurations. For more information see: https://docs.n8n.io/hosting/configuration/environment-variables/workflows/
+workflows:
+  # -- Whether to disable the onboarding flow for new users.
+  # Maps to N8N_ONBOARDING_FLOW_DISABLED. Default is false.
+  onboardingFlowDisabled: false
+  # -- Number of workflows to activate in one batch during startup.
+  # Maps to N8N_WORKFLOW_ACTIVATION_BATCH_SIZE. Default is 1.
+  activationBatchSize: 1
+  # -- Default caller policy for workflow-to-workflow calls.
+  # Allowed values: any | none | workflowsFromAList | workflowsFromSameOwner.
+  # Maps to N8N_WORKFLOW_CALLER_POLICY_DEFAULT_OPTION. Default is workflowsFromSameOwner.
+  callerPolicyDefaultOption: "workflowsFromSameOwner"
+  # -- Whether to disable the tags feature.
+  # Maps to N8N_WORKFLOW_TAGS_DISABLED. Default is false.
+  tagsDisabled: false
+  # -- Default name for new workflows.
+  # Maps to WORKFLOWS_DEFAULT_NAME. Default is "My workflow".
+  defaultName: "My workflow"
+
+# AI Assistant configurations
+aiAssistant:
+  # -- Base URL for the n8n AI Assistant backend.
+  # Maps to N8N_AI_ASSISTANT_BASE_URL. Leave empty to use the default.
+  baseUrl: ""
 
 # The service monitor configuration. Please refer to the following link for more information: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md
 serviceMonitor:

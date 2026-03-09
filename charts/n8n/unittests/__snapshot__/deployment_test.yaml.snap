@@ -143,6 +143,50 @@ should match snapshot of default values:
         helm.sh/chart: n8n-1.0.0
       name: n8n-binary-data-configmap
   10: |
+    apiVersion: v1
+    data:
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES: "true"
+      N8N_SECURE_COOKIE: "true"
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-security-configmap
+  11: |
+    apiVersion: v1
+    data:
+      N8N_ONBOARDING_FLOW_DISABLED: "false"
+      N8N_WORKFLOW_ACTIVATION_BATCH_SIZE: "1"
+      N8N_WORKFLOW_CALLER_POLICY_DEFAULT_OPTION: workflowsFromSameOwner
+      N8N_WORKFLOW_TAGS_DISABLED: "false"
+      WORKFLOWS_DEFAULT_NAME: My workflow
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-workflows-configmap
+  12: |
+    apiVersion: v1
+    data: null
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-ai-assistant-configmap
+  13: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -169,7 +213,7 @@ should match snapshot of default values:
       template:
         metadata:
           annotations:
-            checksum/config: 70336dbee72c9161eef82b0f5e86426ec7dccb2e4eb69798d442689febd93b58
+            checksum/config: 91cc7f876a48e338c4a6ac9704b9dce35bc96724588f13a96a855588685a9df5
           labels:
             app.kubernetes.io/component: main
             app.kubernetes.io/instance: n8n
@@ -194,6 +238,14 @@ should match snapshot of default values:
                   value: Europe/Berlin
                 - name: N8N_GRACEFUL_SHUTDOWN_TIMEOUT
                   value: "30"
+                - name: N8N_RUNNERS_BUILTINS_DENY
+                  value: eval,exec,compile,open,input,breakpoint,getattr,object,type,vars,setattr,delattr,hasattr,dir,memoryview,__build_class__,globals,locals
+                - name: N8N_RUNNERS_MAX_PAYLOAD
+                  value: "1073741824"
+                - name: N8N_BLOCK_RUNNER_ENV_ACCESS
+                  value: "true"
+                - name: N8N_RUNNERS_ALLOW_PROTOTYPE_MUTATION
+                  value: "false"
               envFrom:
                 - configMapRef:
                     name: n8n-database-configmap
@@ -213,6 +265,12 @@ should match snapshot of default values:
                     name: n8n-metrics-configmap
                 - configMapRef:
                     name: n8n-binary-data-configmap
+                - configMapRef:
+                    name: n8n-security-configmap
+                - configMapRef:
+                    name: n8n-workflows-configmap
+                - configMapRef:
+                    name: n8n-ai-assistant-configmap
                 - secretRef:
                     name: n8n-encryption-key-secret-v2
               image: docker.io/n8nio/n8n:1.0.0
@@ -245,7 +303,7 @@ should match snapshot of default values:
             fsGroup: 1000
             fsGroupChangePolicy: OnRootMismatch
           serviceAccountName: n8n
-  11: |
+  14: |
     apiVersion: v1
     data:
       N8N_ENCRYPTION_KEY: dGVzdC1lbmNyeXB0aW9uLWtleQ==
@@ -408,6 +466,50 @@ should match snapshot of main persistence:
         helm.sh/chart: n8n-1.0.0
       name: n8n-binary-data-configmap
   10: |
+    apiVersion: v1
+    data:
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES: "true"
+      N8N_SECURE_COOKIE: "true"
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-security-configmap
+  11: |
+    apiVersion: v1
+    data:
+      N8N_ONBOARDING_FLOW_DISABLED: "false"
+      N8N_WORKFLOW_ACTIVATION_BATCH_SIZE: "1"
+      N8N_WORKFLOW_CALLER_POLICY_DEFAULT_OPTION: workflowsFromSameOwner
+      N8N_WORKFLOW_TAGS_DISABLED: "false"
+      WORKFLOWS_DEFAULT_NAME: My workflow
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-workflows-configmap
+  12: |
+    apiVersion: v1
+    data: null
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-ai-assistant-configmap
+  13: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -434,7 +536,7 @@ should match snapshot of main persistence:
       template:
         metadata:
           annotations:
-            checksum/config: 70336dbee72c9161eef82b0f5e86426ec7dccb2e4eb69798d442689febd93b58
+            checksum/config: 91cc7f876a48e338c4a6ac9704b9dce35bc96724588f13a96a855588685a9df5
           labels:
             app.kubernetes.io/component: main
             app.kubernetes.io/instance: n8n
@@ -459,6 +561,14 @@ should match snapshot of main persistence:
                   value: Europe/Berlin
                 - name: N8N_GRACEFUL_SHUTDOWN_TIMEOUT
                   value: "30"
+                - name: N8N_RUNNERS_BUILTINS_DENY
+                  value: eval,exec,compile,open,input,breakpoint,getattr,object,type,vars,setattr,delattr,hasattr,dir,memoryview,__build_class__,globals,locals
+                - name: N8N_RUNNERS_MAX_PAYLOAD
+                  value: "1073741824"
+                - name: N8N_BLOCK_RUNNER_ENV_ACCESS
+                  value: "true"
+                - name: N8N_RUNNERS_ALLOW_PROTOTYPE_MUTATION
+                  value: "false"
               envFrom:
                 - configMapRef:
                     name: n8n-database-configmap
@@ -478,6 +588,12 @@ should match snapshot of main persistence:
                     name: n8n-metrics-configmap
                 - configMapRef:
                     name: n8n-binary-data-configmap
+                - configMapRef:
+                    name: n8n-security-configmap
+                - configMapRef:
+                    name: n8n-workflows-configmap
+                - configMapRef:
+                    name: n8n-ai-assistant-configmap
                 - secretRef:
                     name: n8n-encryption-key-secret-v2
               image: docker.io/n8nio/n8n:1.0.0
@@ -518,7 +634,7 @@ should match snapshot of main persistence:
             - name: node-modules
               persistentVolumeClaim:
                 claimName: n8n-main
-  11: |
+  14: |
     apiVersion: v1
     data:
       N8N_ENCRYPTION_KEY: dGVzdC1lbmNyeXB0aW9uLWtleQ==
@@ -681,6 +797,50 @@ should match snapshot of main persistence with multiple main node and mode read 
         helm.sh/chart: n8n-1.0.0
       name: n8n-binary-data-configmap
   10: |
+    apiVersion: v1
+    data:
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES: "true"
+      N8N_SECURE_COOKIE: "true"
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-security-configmap
+  11: |
+    apiVersion: v1
+    data:
+      N8N_ONBOARDING_FLOW_DISABLED: "false"
+      N8N_WORKFLOW_ACTIVATION_BATCH_SIZE: "1"
+      N8N_WORKFLOW_CALLER_POLICY_DEFAULT_OPTION: workflowsFromSameOwner
+      N8N_WORKFLOW_TAGS_DISABLED: "false"
+      WORKFLOWS_DEFAULT_NAME: My workflow
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-workflows-configmap
+  12: |
+    apiVersion: v1
+    data: null
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-ai-assistant-configmap
+  13: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -707,7 +867,7 @@ should match snapshot of main persistence with multiple main node and mode read 
       template:
         metadata:
           annotations:
-            checksum/config: 70336dbee72c9161eef82b0f5e86426ec7dccb2e4eb69798d442689febd93b58
+            checksum/config: 91cc7f876a48e338c4a6ac9704b9dce35bc96724588f13a96a855588685a9df5
           labels:
             app.kubernetes.io/component: main
             app.kubernetes.io/instance: n8n
@@ -734,6 +894,14 @@ should match snapshot of main persistence with multiple main node and mode read 
                   value: "30"
                 - name: N8N_MULTI_MAIN_SETUP_ENABLED
                   value: "true"
+                - name: N8N_RUNNERS_BUILTINS_DENY
+                  value: eval,exec,compile,open,input,breakpoint,getattr,object,type,vars,setattr,delattr,hasattr,dir,memoryview,__build_class__,globals,locals
+                - name: N8N_RUNNERS_MAX_PAYLOAD
+                  value: "1073741824"
+                - name: N8N_BLOCK_RUNNER_ENV_ACCESS
+                  value: "true"
+                - name: N8N_RUNNERS_ALLOW_PROTOTYPE_MUTATION
+                  value: "false"
               envFrom:
                 - configMapRef:
                     name: n8n-database-configmap
@@ -753,6 +921,12 @@ should match snapshot of main persistence with multiple main node and mode read 
                     name: n8n-metrics-configmap
                 - configMapRef:
                     name: n8n-binary-data-configmap
+                - configMapRef:
+                    name: n8n-security-configmap
+                - configMapRef:
+                    name: n8n-workflows-configmap
+                - configMapRef:
+                    name: n8n-ai-assistant-configmap
                 - secretRef:
                     name: n8n-encryption-key-secret-v2
               image: docker.io/n8nio/n8n:1.0.0
@@ -793,7 +967,7 @@ should match snapshot of main persistence with multiple main node and mode read 
             - name: node-modules
               persistentVolumeClaim:
                 claimName: n8n-main
-  11: |
+  14: |
     apiVersion: v1
     data:
       N8N_ENCRYPTION_KEY: dGVzdC1lbmNyeXB0aW9uLWtleQ==
@@ -966,6 +1140,50 @@ should match snapshot of postgres ssl certificate values:
         helm.sh/chart: n8n-1.0.0
       name: n8n-binary-data-configmap
   10: |
+    apiVersion: v1
+    data:
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES: "true"
+      N8N_SECURE_COOKIE: "true"
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-security-configmap
+  11: |
+    apiVersion: v1
+    data:
+      N8N_ONBOARDING_FLOW_DISABLED: "false"
+      N8N_WORKFLOW_ACTIVATION_BATCH_SIZE: "1"
+      N8N_WORKFLOW_CALLER_POLICY_DEFAULT_OPTION: workflowsFromSameOwner
+      N8N_WORKFLOW_TAGS_DISABLED: "false"
+      WORKFLOWS_DEFAULT_NAME: My workflow
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-workflows-configmap
+  12: |
+    apiVersion: v1
+    data: null
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: n8n
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: n8n-1.0.0
+      name: n8n-ai-assistant-configmap
+  13: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -992,7 +1210,7 @@ should match snapshot of postgres ssl certificate values:
       template:
         metadata:
           annotations:
-            checksum/config: c1f3428cdbcae6eb0b9473fd186d1a0d9b20e0c7a0f6f7714a91423848611ee0
+            checksum/config: c35c9895b202c4b2e0fb7ba46c164fd5c727e57dff6522f965bd87929e172f77
           labels:
             app.kubernetes.io/component: main
             app.kubernetes.io/instance: n8n
@@ -1025,6 +1243,14 @@ should match snapshot of postgres ssl certificate values:
                       key: postgres-password
                       name: n8n-postgresql
                       optional: true
+                - name: N8N_RUNNERS_BUILTINS_DENY
+                  value: eval,exec,compile,open,input,breakpoint,getattr,object,type,vars,setattr,delattr,hasattr,dir,memoryview,__build_class__,globals,locals
+                - name: N8N_RUNNERS_MAX_PAYLOAD
+                  value: "1073741824"
+                - name: N8N_BLOCK_RUNNER_ENV_ACCESS
+                  value: "true"
+                - name: N8N_RUNNERS_ALLOW_PROTOTYPE_MUTATION
+                  value: "false"
               envFrom:
                 - configMapRef:
                     name: n8n-database-configmap
@@ -1044,6 +1270,12 @@ should match snapshot of postgres ssl certificate values:
                     name: n8n-metrics-configmap
                 - configMapRef:
                     name: n8n-binary-data-configmap
+                - configMapRef:
+                    name: n8n-security-configmap
+                - configMapRef:
+                    name: n8n-workflows-configmap
+                - configMapRef:
+                    name: n8n-ai-assistant-configmap
                 - secretRef:
                     name: n8n-encryption-key-secret-v2
               image: docker.io/n8nio/n8n:1.0.0
@@ -1108,7 +1340,7 @@ should match snapshot of postgres ssl certificate values:
                   - key: client.key
                     path: cert.key
                 secretName: my-client-cert-private-key-secret
-  11: |
+  14: |
     apiVersion: v1
     data:
       postgres-password: ""
@@ -1122,7 +1354,7 @@ should match snapshot of postgres ssl certificate values:
         helm.sh/chart: n8n-1.0.0
       name: n8n-postgresql
     type: Opaque
-  12: |
+  15: |
     apiVersion: v1
     data:
       N8N_ENCRYPTION_KEY: dGVzdC1lbmNyeXB0aW9uLWtleQ==
