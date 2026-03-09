@@ -1996,3 +1996,38 @@ tests:
         value: "true"
       any: true
     template: worker/deployment.yaml
+- it: should merge python runner environment variables from builtin and external
+  set:
+    taskRunners:
+      mode: internal
+    nodes:
+      builtin:
+        pythonStdlibAllow: "math"
+        pythonBuiltinsDeny: "eval"
+        pythonExternalAllow: "requests"
+      external:
+        pythonStdlibAllow: "json"
+        pythonBuiltinsDeny: "exec"
+        pythonExternalAllow: "pandas"
+  asserts:
+  - contains:
+      path: spec.template.spec.containers[?(@.name == "n8n-worker")].env
+      content:
+        name: N8N_RUNNERS_STDLIB_ALLOW
+        value: "math,json"
+      any: true
+    template: worker/deployment.yaml
+  - contains:
+      path: spec.template.spec.containers[?(@.name == "n8n-worker")].env
+      content:
+        name: N8N_RUNNERS_BUILTINS_DENY
+        value: "eval,exec"
+      any: true
+    template: worker/deployment.yaml
+  - contains:
+      path: spec.template.spec.containers[?(@.name == "n8n-worker")].env
+      content:
+        name: N8N_RUNNERS_EXTERNAL_ALLOW
+        value: "requests,pandas"
+      any: true
+    template: worker/deployment.yaml

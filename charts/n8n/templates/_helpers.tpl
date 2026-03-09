@@ -458,13 +458,15 @@ Runners environment variables (for internal and external task runners)
 - name: NODE_FUNCTION_ALLOW_BUILTIN
   value: {{ if .Values.nodes.builtin.modules }}{{ join "," .Values.nodes.builtin.modules }}{{ else }}"*"{{ end }}
 {{- end }}
-{{- if .Values.nodes.builtin.pythonStdlibAllow }}
+{{- $pythonStdlibAllow := list .Values.nodes.builtin.pythonStdlibAllow .Values.nodes.external.pythonStdlibAllow | compact | join "," }}
+{{- if $pythonStdlibAllow }}
 - name: N8N_RUNNERS_STDLIB_ALLOW
-  value: {{ .Values.nodes.builtin.pythonStdlibAllow | quote }}
+  value: {{ $pythonStdlibAllow | quote }}
 {{- end }}
-{{- if .Values.nodes.builtin.pythonBuiltinsDeny }}
+{{- $pythonBuiltinsDeny := list .Values.nodes.builtin.pythonBuiltinsDeny .Values.nodes.external.pythonBuiltinsDeny | compact | join "," }}
+{{- if $pythonBuiltinsDeny }}
 - name: N8N_RUNNERS_BUILTINS_DENY
-  value: {{ .Values.nodes.builtin.pythonBuiltinsDeny | quote }}
+  value: {{ $pythonBuiltinsDeny | quote }}
 {{- end }}
 {{- if .Values.nodes.external.allowAll }}
 - name: NODE_FUNCTION_ALLOW_EXTERNAL
@@ -477,9 +479,10 @@ Runners environment variables (for internal and external task runners)
 - name: N8N_REINSTALL_MISSING_PACKAGES
   value: "true"
 {{- end }}
-{{- if .Values.nodes.external.pythonExternalAllow }}
+{{- $pythonExternalAllow := list .Values.nodes.builtin.pythonExternalAllow .Values.nodes.external.pythonExternalAllow | compact | join "," }}
+{{- if $pythonExternalAllow }}
 - name: N8N_RUNNERS_EXTERNAL_ALLOW
-  value: {{ .Values.nodes.external.pythonExternalAllow | quote }}
+  value: {{ $pythonExternalAllow | quote }}
 {{- end }}
 {{- if hasKey .Values.taskRunners "maxPayload" }}
 - name: N8N_RUNNERS_MAX_PAYLOAD
