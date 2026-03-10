@@ -3,8 +3,8 @@ name: n8n
 description: Helm chart for n8n - A workflow automation platform that gives technical teams the flexibility of code with the speed of no-code.
 icon: https://avatars1.githubusercontent.com/u/45487711?s=200&v=4
 type: application
-version: 1.0.21
-appVersion: "2.10.3"
+version: 1.0.22
+appVersion: "2.10.4"
 kubeVersion: ">=1.23.0-0"
 home: https://n8n.io
 sources:
