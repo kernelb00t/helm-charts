@@ -78,7 +78,7 @@ jobs:
             echo "Detected internal Gitea environment"
             
             DOMAIN=$(echo "${SERVER_URL_BASE}" | sed -e 's|^[^/]*//||' -e 's|:[0-9]*||' -e 's|^gitea\.||')
-            echo "REPO_URL=https://${REPO_OWNER}.pages.${DOMAIN}/${REPO_NAME}/@pages" >> $GITHUB_ENV
+            echo "REPO_URL=https://${REPO_OWNER}.pages.${DOMAIN}/${REPO_NAME}" >> $GITHUB_ENV
             
             echo "CR_GIT_BASE_URL=${SERVER_URL_BASE}/api/v1/" >> $GITHUB_ENV
             echo "CR_GIT_UPLOAD_URL=${SERVER_URL_BASE}/api/v1/" >> $GITHUB_ENV
