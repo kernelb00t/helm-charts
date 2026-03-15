@@ -155,7 +155,9 @@ tests:
     template: worker/deployment.yaml
 - it: should set image pull policy when imagePullPolicy is set
   set:
-    main.image.pullPolicy: Always
+    worker:
+      image:
+        pullPolicy: Always
   asserts:
   - equal:
       path: spec.template.spec.containers[?(@.name == "n8n-worker")].imagePullPolicy
@@ -1814,9 +1816,10 @@ tests:
         - infinity
       any: true
     template: worker/deployment.yaml
-- it: should set dnsPolicy when dnsPolicy is set
+- it: should set dnsPolicy when worker.dnsPolicy is set
   set:
-    dnsPolicy: ClusterFirst
+    worker:
+      dnsPolicy: ClusterFirst
   asserts:
   - equal:
       path: spec.template.spec.dnsPolicy

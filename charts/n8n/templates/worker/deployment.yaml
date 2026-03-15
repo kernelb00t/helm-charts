@@ -50,7 +50,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- include "n8n.images.pullSecrets" (dict "images" (list .Values.main.image .Values.nodes.initContainer.image .Values.taskRunners.image) "global" .Values.global) | nindent 6 }}
+      {{- include "n8n.images.pullSecrets" (dict "images" (list .Values.worker.image .Values.main.image .Values.nodes.initContainer.image .Values.taskRunners.image) "global" .Values.global) | nindent 6 }}
       serviceAccountName: {{ include "n8n.serviceAccountName" . }}
       securityContext:
         {{- toYaml (default .Values.global.podSecurityContext .Values.worker.podSecurityContext) | nindent 8 }}
@@ -121,8 +121,8 @@ spec:
         - name: {{ include "n8n.names.name" . }}-worker
           securityContext:
             {{- toYaml (default .Values.global.containerSecurityContext .Values.worker.securityContext) | nindent 12 }}
-          image: {{ include "n8n.images.image" (dict "imageRoot" .Values.main.image "global" .Values.global "chart" .Chart) }}
-          imagePullPolicy: {{ .Values.main.image.pullPolicy }}
+          image: {{ include "n8n.images.image" (dict "imageRoot" .Values.worker.image "global" .Values.global "chart" .Chart) }}
+          imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
           command: ["n8n"]
           args: ["worker", "--concurrency={{ .Values.worker.concurrency }}"]
           ports:
@@ -307,10 +307,11 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.dnsPolicy }}
-      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- $dnsPolicy := coalesce .Values.worker.dnsPolicy .Values.global.dnsPolicy "" }}
+      {{- if $dnsPolicy }}
+      dnsPolicy: {{ $dnsPolicy }}
       {{- end }}
-      {{- with .Values.dnsConfig }}
+      {{- with (default .Values.global.dnsConfig .Values.worker.dnsConfig) }}
       dnsConfig:
         {{- toYaml . | nindent 8 }}
       {{- end }}

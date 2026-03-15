@@ -153,7 +153,9 @@ tests:
     template: webhook/deployment.yaml
 - it: should set image pull policy when imagePullPolicy is set
   set:
-    main.image.pullPolicy: Always
+    webhook:
+      image:
+        pullPolicy: Always
   asserts:
   - equal:
       path: spec.template.spec.containers[?(@.name == "n8n-webhook")].imagePullPolicy
@@ -1327,9 +1329,10 @@ tests:
         - infinity
       any: true
     template: webhook/deployment.yaml
-- it: should set dnsPolicy when dnsPolicy is set
+- it: should set dnsPolicy when webhook.dnsPolicy is set
   set:
-    dnsPolicy: ClusterFirst
+    webhook:
+      dnsPolicy: ClusterFirst
   asserts:
   - equal:
       path: spec.template.spec.dnsPolicy

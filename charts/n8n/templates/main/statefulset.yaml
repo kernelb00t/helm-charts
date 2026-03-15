@@ -351,10 +351,11 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.dnsPolicy }}
-      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- $dnsPolicy := coalesce .Values.main.dnsPolicy .Values.global.dnsPolicy "" }}
+      {{- if $dnsPolicy }}
+      dnsPolicy: {{ $dnsPolicy }}
       {{- end }}
-      {{- with .Values.dnsConfig }}
+      {{- with (default .Values.global.dnsConfig .Values.main.dnsConfig) }}
       dnsConfig:
         {{- toYaml . | nindent 8 }}
       {{- end }}

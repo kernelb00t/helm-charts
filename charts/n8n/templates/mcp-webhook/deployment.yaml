@@ -30,7 +30,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- include "n8n.images.pullSecrets" (dict "images" (list .Values.main.image) "global" .Values.global) | nindent 6 }}
+      {{- include "n8n.images.pullSecrets" (dict "images" (list .Values.webhook.mcp.image .Values.main.image) "global" .Values.global) | nindent 6 }}
       serviceAccountName: {{ include "n8n.serviceAccountName" . }}
       securityContext:
         {{- toYaml (default .Values.global.podSecurityContext .Values.webhook.mcp.podSecurityContext) | nindent 8 }}
@@ -38,8 +38,8 @@ spec:
       hostAliases:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.webhook.runtimeClassName }}
-      runtimeClassName: {{ .Values.webhook.runtimeClassName }}
+      {{- if .Values.webhook.mcp.runtimeClassName }}
+      runtimeClassName: {{ .Values.webhook.mcp.runtimeClassName }}
       {{- end }}
       {{- if or .Values.webhook.waitMainNodeReady.enabled .Values.webhook.mcp.initContainers  }}
       initContainers:
@@ -73,8 +73,8 @@ spec:
         - name: {{ include "n8n.names.name" . }}-mcp-webhook
           securityContext:
             {{- toYaml (default .Values.global.containerSecurityContext .Values.webhook.mcp.securityContext) | nindent 12 }}
-          image: {{ include "n8n.images.image" (dict "imageRoot" .Values.main.image "global" .Values.global "chart" .Chart) }}
-          imagePullPolicy: {{ .Values.main.image.pullPolicy }}
+          image: {{ include "n8n.images.image" (dict "imageRoot" .Values.webhook.mcp.image "global" .Values.global "chart" .Chart) }}
+          imagePullPolicy: {{ .Values.webhook.mcp.image.pullPolicy }}
           command: ["n8n"]
           args: ["webhook"]
           ports:
@@ -188,10 +188,11 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.dnsPolicy }}
-      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- $dnsPolicy := coalesce .Values.webhook.mcp.dnsPolicy .Values.global.dnsPolicy "" }}
+      {{- if $dnsPolicy }}
+      dnsPolicy: {{ $dnsPolicy }}
       {{- end }}
-      {{- with .Values.dnsConfig }}
+      {{- with (default .Values.global.dnsConfig .Values.webhook.mcp.dnsConfig) }}
       dnsConfig:
         {{- toYaml . | nindent 8 }}
       {{- end }}

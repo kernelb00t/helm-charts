@@ -174,9 +174,10 @@ tests:
     template: mcp-webhook/deployment.yaml
 - it: should set image pull policy when imagePullPolicy is set
   set:
-    main.image.pullPolicy: Always
     webhook:
-      mcp: {}
+      mcp:
+        image:
+          pullPolicy: Always
   asserts:
   - equal:
       path: spec.template.spec.containers[?(@.name == "n8n-mcp-webhook")].imagePullPolicy
@@ -1426,11 +1427,11 @@ tests:
         - infinity
       any: true
     template: mcp-webhook/deployment.yaml
-- it: should set dnsPolicy when dnsPolicy is set
+- it: should set dnsPolicy when webhook.mcp.dnsPolicy is set
   set:
-    dnsPolicy: ClusterFirst
     webhook:
-      mcp: {}
+      mcp:
+        dnsPolicy: ClusterFirst
   asserts:
   - equal:
       path: spec.template.spec.dnsPolicy
@@ -1453,11 +1454,11 @@ tests:
         - my-host.com
       any: true
     template: mcp-webhook/deployment.yaml
-- it: should set runtimeClassName when webhook.runtimeClassName is defined
+- it: should set runtimeClassName when webhook.mcp.runtimeClassName is defined
   set:
     webhook:
-      runtimeClassName: my-runtime-class
-      mcp: {}
+      mcp:
+        runtimeClassName: my-runtime-class
   asserts:
   - equal:
       path: spec.template.spec.runtimeClassName

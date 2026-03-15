@@ -7,6 +7,8 @@ global:
   affinity: {}
   securityContext: {}
   extraEnvVars: {}
+  dnsPolicy: ""
+  dnsConfig: {}
 
   strategy:
     type: "RollingUpdate"
@@ -288,7 +290,7 @@ license:
 # @section Main Node parameters
 # Main node configurations
 main:
-  dnsPolicy: ClusterFirst
+  dnsPolicy: ""
   dnsConfig: {}
   image:
     repository: n8nio/n8n
@@ -400,6 +402,12 @@ main:
 
 # Worker node configurations
 worker:
+  # -- Worker node image configuration.
+  image:
+    repository: n8nio/n8n
+    tag: ""
+    pullPolicy: IfNotPresent
+
   # Use `regular` to use main node as executer, or use `queue` to have worker nodes
   mode: regular
   concurrency: 10
@@ -521,9 +529,17 @@ worker:
   affinity: {}
   hostAliases: []
   runtimeClassName: ""
+  dnsPolicy: ""
+  dnsConfig: {}
 
 # Webhook node configurations
 webhook:
+  # -- Webhook node image configuration.
+  image:
+    repository: n8nio/n8n
+    tag: ""
+    pullPolicy: IfNotPresent
+
   # Use `regular` to use main node as webhook node, or use `queue` to have webhook nodes
   mode: regular
   # -- Webhook URL (include http/https schema).
@@ -534,6 +550,11 @@ webhook:
   # MCP webhook configuration. This is only used when the webhook mode is set to `queue` and the database type is set to `postgresdb`.
   mcp:
     enabled: true
+    # -- MCP webhook node image configuration.
+    image:
+      repository: n8nio/n8n
+      tag: ""
+      pullPolicy: IfNotPresent
     resources: {}
 
     startupProbe:
@@ -572,6 +593,9 @@ webhook:
     extraContainers: []
     affinity: {}
     hostAliases: []
+    runtimeClassName: ""
+    dnsPolicy: ""
+    dnsConfig: {}
 
   autoscaling:
     enabled: false
@@ -694,6 +718,8 @@ webhook:
   affinity: {}
   hostAliases: []
   runtimeClassName: ""
+  dnsPolicy: ""
+  dnsConfig: {}
 
   # HTTPRoute configuration for the webhook node (Gateway API)
   httpRoute:

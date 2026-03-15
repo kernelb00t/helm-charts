@@ -1748,9 +1748,10 @@ tests:
         - infinity
       any: true
     template: main/deployment.yaml
-- it: should set dnsPolicy when dnsPolicy is set
+- it: should set dnsPolicy when main.dnsPolicy is set
   set:
-    dnsPolicy: ClusterFirst
+    main:
+      dnsPolicy: ClusterFirst
   asserts:
   - equal:
       path: spec.template.spec.dnsPolicy
