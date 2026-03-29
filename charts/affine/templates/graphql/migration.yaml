@@ -22,6 +22,18 @@ spec:
       serviceAccountName: {{ include "graphql.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+      - name: wait-for-postgresql
+        image: busybox:1.37
+        imagePullPolicy: IfNotPresent
+        command:
+          - sh
+          - -c
+          - |
+            until nc -zv {{ .Values.db.database.host }} {{ .Values.db.database.port }}; do
+              echo "Waiting for PostgreSQL at {{ .Values.db.database.host }}:{{ .Values.db.database.port }}..."
+              sleep 3
+            done
       containers:
       - name: {{ .Chart.Name }}
         securityContext:
@@ -66,5 +78,5 @@ spec:
             secretName: {{ include "affine.fullname" . }}-config
         {{- end }}
       restartPolicy: Never
-  backoffLimit: 1
+  backoffLimit: 3
 {{- end }}
