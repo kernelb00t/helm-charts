@@ -7,7 +7,7 @@ This repository hosts Helm charts for various applications.
 Add this repository to your Helm client:
 
 ```bash
-helm repo add dev-charts https://dalamudx.github.io/helm-charts
+helm repo add dev-charts https://kernelb00t.github.io/helm-charts
 helm repo update
 ```
 

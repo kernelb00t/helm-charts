@@ -9,7 +9,7 @@ This chart bootstraps an [AFFiNE](https://github.com/toeverything/AFFiNE) deploy
 ## TL;DR
 
 ```bash
-helm repo add dev-charts https://dalamudx.github.io/helm-charts
+helm repo add dev-charts https://kernelb00t.github.io/helm-charts
 helm repo update
 helm install my-affine dev-charts/affine
 ```
@@ -61,10 +61,10 @@ helm uninstall my-affinebash
 
 ## Chart Info
 
-![Version: 1.0.1](https://img.shields.io/badge/Version-1.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.26.2](https://img.shields.io/badge/AppVersion-0.26.2-informational?style=flat-square)
+![Version: 1.0.4](https://img.shields.io/badge/Version-1.0.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.26.3](https://img.shields.io/badge/AppVersion-0.26.3-informational?style=flat-square)
 
 | Field | Value |
 |-------|-------|
-| Chart Version | `1.0.1` |
-| App Version | `0.26.2` |
+| Chart Version | `1.0.4` |
+| App Version | `0.26.3` |
 | Source | <a href="https://github.com/toeverything/AFFiNE">https://github.com/toeverything/AFFiNE</a><br><a href="https://github.com/dalamudx/helm-charts">https://github.com/dalamudx/helm-charts</a> |
