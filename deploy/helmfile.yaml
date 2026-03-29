@@ -1,0 +1,30 @@
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+
+releases:
+  # PostgreSQL
+  - name: pg
+    namespace: affine
+    chart: bitnami/postgresql
+    version: "16.4.4"
+    values:
+      - values/postgresql.yaml
+
+  # Redis
+  - name: redis
+    namespace: affine
+    chart: bitnami/redis
+    version: "21.1.6"
+    values:
+      - values/redis.yaml
+
+  # AFFiNE
+  - name: affine
+    namespace: affine
+    chart: ../charts/affine
+    needs:
+      - affine/pg
+      - affine/redis
+    values:
+      - values/affine.yaml

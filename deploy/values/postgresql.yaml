@@ -1,0 +1,8 @@
+auth:
+  postgresPassword: "affine_pg_password"
+  database: "affine"
+
+primary:
+  persistence:
+    enabled: true
+    size: 2Gi
