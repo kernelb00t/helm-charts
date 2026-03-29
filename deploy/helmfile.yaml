@@ -23,6 +23,7 @@ releases:
   - name: affine
     namespace: affine
     chart: ../charts/affine
+    timeout: 900
     needs:
       - affine/pg
       - affine/redis
