@@ -116,7 +116,7 @@ tests:
         template: ingress.yaml
 
   # --- Backend routing logic ---------------------------------------
-  - it: should route path / to front service
+  - it: should always auto-generate /graphql route to graphql service as first path
     set:
       front:
         ingress:
@@ -128,15 +128,63 @@ tests:
                   pathType: Prefix
     asserts:
       - equal:
+          path: spec.rules[0].http.paths[0].path
+          value: /graphql
+        template: ingress.yaml
+      - equal:
           path: spec.rules[0].http.paths[0].backend.service.name
-          value: affine-front
+          value: affine-graphql
         template: ingress.yaml
       - equal:
           path: spec.rules[0].http.paths[0].backend.service.port.number
           value: 3010
         template: ingress.yaml
 
-  - it: should route path /graphql to graphql service
+  - it: should always auto-generate /api route to graphql service as second path
+    set:
+      front:
+        ingress:
+          enabled: true
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+    asserts:
+      - equal:
+          path: spec.rules[0].http.paths[1].path
+          value: /api
+        template: ingress.yaml
+      - equal:
+          path: spec.rules[0].http.paths[1].backend.service.name
+          value: affine-graphql
+        template: ingress.yaml
+
+  - it: should route path / to front service as third path when only / is configured
+    set:
+      front:
+        ingress:
+          enabled: true
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+    asserts:
+      - equal:
+          path: spec.rules[0].http.paths[2].path
+          value: /
+        template: ingress.yaml
+      - equal:
+          path: spec.rules[0].http.paths[2].backend.service.name
+          value: affine-front
+        template: ingress.yaml
+      - equal:
+          path: spec.rules[0].http.paths[2].backend.service.port.number
+          value: 3010
+        template: ingress.yaml
+
+  - it: should deduplicate /graphql when user also lists /graphql in paths
     set:
       front:
         ingress:
@@ -148,11 +196,18 @@ tests:
                   pathType: Prefix
     asserts:
       - equal:
+          path: spec.rules[0].http.paths[0].path
+          value: /graphql
+        template: ingress.yaml
+      - equal:
           path: spec.rules[0].http.paths[0].backend.service.name
           value: affine-graphql
         template: ingress.yaml
+      - isNull:
+          path: spec.rules[0].http.paths[2]
+        template: ingress.yaml
 
-  - it: should route path /api to graphql service
+  - it: should deduplicate /api when user also lists /api in paths
     set:
       front:
         ingress:
@@ -164,8 +219,47 @@ tests:
                   pathType: Prefix
     asserts:
       - equal:
-          path: spec.rules[0].http.paths[0].backend.service.name
+          path: spec.rules[0].http.paths[1].path
+          value: /api
+        template: ingress.yaml
+      - equal:
+          path: spec.rules[0].http.paths[1].backend.service.name
           value: affine-graphql
+        template: ingress.yaml
+      - isNull:
+          path: spec.rules[0].http.paths[2]
+        template: ingress.yaml
+
+  - it: should use Prefix pathType for auto-generated /graphql route
+    set:
+      front:
+        ingress:
+          enabled: true
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+    asserts:
+      - equal:
+          path: spec.rules[0].http.paths[0].pathType
+          value: Prefix
+        template: ingress.yaml
+
+  - it: should use Prefix pathType for auto-generated /api route
+    set:
+      front:
+        ingress:
+          enabled: true
+          hosts:
+            - host: affine.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+    asserts:
+      - equal:
+          path: spec.rules[0].http.paths[1].pathType
+          value: Prefix
         template: ingress.yaml
 
   # --- Hostname ----------------------------------------------------

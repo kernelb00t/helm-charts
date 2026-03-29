@@ -9,7 +9,7 @@ metadata:
 spec:
   containers:
     - name: wget
-      image: "{{ .Values.global.imageRegistry }}/busybox"
+      image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}busybox:latest"
       imagePullPolicy: IfNotPresent
       command: ['wget']
       args: ['{{ include "graphql.fullname" . }}:{{ .Values.graphql.service.port }}']

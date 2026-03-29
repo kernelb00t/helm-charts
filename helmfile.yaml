@@ -1,0 +1,55 @@
+---
+# Helmfile for deploying AFFiNE on a single-node Kubernetes cluster (e.g. kind, k3s, minikube)
+# Usage:
+#   helmfile sync              # install/upgrade everything
+#   helmfile destroy           # uninstall everything
+#   helmfile -e local sync     # explicit local environment
+
+environments:
+  local:
+    values:
+      - helmfile-values/local.yaml.gotmpl
+
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+
+releases:
+  # PostgreSQL
+  - name: pg
+    namespace: affine
+    chart: bitnami/postgresql
+    version: "16.x.x"
+    values:
+      - auth:
+          database: affine
+          username: postgres
+          password: "{{ .Values.postgresPassword }}"
+      - primary:
+          persistence:
+            enabled: true
+            size: 8Gi
+
+  # Redis
+  - name: redis
+    namespace: affine
+    chart: bitnami/redis
+    version: "20.x.x"
+    values:
+      - architecture: standalone
+      - auth:
+          enabled: false
+      - master:
+          persistence:
+            enabled: true
+            size: 4Gi
+
+  # AFFiNE
+  - name: affine
+    namespace: affine
+    chart: ./charts/affine
+    needs:
+      - affine/pg
+      - affine/redis
+    values:
+      - helmfile-values/affine.yaml.gotmpl

@@ -12,6 +12,9 @@ global:
   digest: ""
   pullPolicy: IfNotPresent
   pullSecrets: []
+  # -- Registry for helper images (e.g. busybox used in helm tests).
+  # Leave empty to use the default Docker Hub library images.
+  imageRegistry: ""
 
 # Application settings
 app:

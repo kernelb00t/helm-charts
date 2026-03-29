@@ -31,14 +31,30 @@ spec:
     - host: {{ .host | quote }}
       http:
         paths:
+          - path: /graphql
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $graphqlName }}
+                port:
+                  number: {{ $.Values.graphql.service.port }}
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $graphqlName }}
+                port:
+                  number: {{ $.Values.graphql.service.port }}
           {{- range .paths }}
+          {{- if and (ne .path "/graphql") (ne .path "/api") }}
           - path: {{ .path }}
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ if or (eq .path "/graphql") (eq .path "/api") }}{{ $graphqlName }}{{ else }}{{ $frontName }}{{ end }}
+                name: {{ $frontName }}
                 port:
-                  number: {{ if or (eq .path "/graphql") (eq .path "/api") }}{{ $.Values.graphql.service.port }}{{ else }}{{ $.Values.front.service.port }}{{ end }}
+                  number: {{ $.Values.front.service.port }}
+          {{- end }}
           {{- end }}
     {{- end }}
 {{- end }}
